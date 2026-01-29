@@ -32,7 +32,6 @@ Uygulamanın temel amacı; barkod sistemi olmayan veya karmaşık POS/ERP yazıl
 - Ödeme türüne göre giderler:
   - Nakit
   - Kart (POS komisyon oranı veya sabit gider)
-  - IBAN
 - Satış anında ve raporlarda:
   - Satış geliri
   - Ürün maliyeti

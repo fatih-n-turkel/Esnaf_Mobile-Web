@@ -42,7 +42,7 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
       <div className="mt-4 border-t pt-4 space-y-2">
         <div className="text-sm font-medium">Ödeme</div>
         <div className="grid grid-cols-3 gap-2">
-          {(["CASH", "CARD", "IBAN"] as const).map((t) => (
+          {(["CASH", "CARD"] as const).map((t) => (
             <button
               key={t}
               onClick={() => cart.setPaymentType(t)}
@@ -51,7 +51,7 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
                 cart.paymentType === t ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50",
               ].join(" ")}
             >
-              {t === "CASH" ? "Nakit" : t === "CARD" ? "Kart" : "IBAN"}
+              {t === "CASH" ? "Nakit" : t === "CARD" ? "Kart" : ""}
             </button>
           ))}
         </div>

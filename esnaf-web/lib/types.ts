@@ -1,6 +1,6 @@
-export type Role = "ADMIN" | "MANAGER" | "STAFF";
+export type Role = "ADMİN" | "MÜDÜR" | "PERSONEL";
 
-export type PaymentType = "CASH" | "CARD" | "IBAN";
+export type PaymentType = "CASH" | "CARD";
 export type PosFeeType = "RATE" | "FIXED";
 
 export type Product = {

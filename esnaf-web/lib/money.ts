@@ -7,7 +7,7 @@ export function fmtTRY(n: number) {
 }
 
 export function calcPosFee(
-  paymentType: "CASH" | "CARD" | "IBAN",
+  paymentType: "CASH" | "CARD",
   feeType: "RATE" | "FIXED",
   feeValue: number,
   revenue: number
@@ -19,7 +19,7 @@ export function calcPosFee(
 
 export function calcSaleTotals(
   items: { qty: number; unitSalePrice: number; unitCostPrice: number; vatRate: number }[],
-  paymentType: "CASH" | "CARD" | "IBAN",
+  paymentType: "CASH" | "CARD",
   posFeeType: "RATE" | "FIXED",
   posFeeValue: number
 ) {

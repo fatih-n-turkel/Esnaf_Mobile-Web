@@ -1,6 +1,6 @@
 # Esnaf Mobil / Web – Satış, Stok ve Net Kâr Yönetimi
 
-Esnaf Web, küçük ve orta ölçekli işletmeler (bakkal, büfe, market, kırtasiye, butik vb.) için geliştirilmiş **satış, stok ve net kâr/zarar takibi** odaklı bir mobil ve web uygulamasıdır.
+Esnaf Mobil/Web, küçük ve orta ölçekli işletmeler (bakkal, büfe, market, kırtasiye, butik vb.) için geliştirilmiş **satış, stok ve net kâr/zarar takibi** odaklı bir mobil ve web uygulamasıdır.
 
 Uygulamanın temel amacı; barkod sistemi olmayan veya karmaşık POS/ERP yazılımlarını kullanmak istemeyen esnafların, **minimum eforla** satış yapabilmesini ve işinin finansal durumunu **anlık ve net** şekilde görebilmesini sağlamaktır.
 

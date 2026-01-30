@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ProductGrid from "@/components/sales/product-grid";
 import CartPanel from "@/components/sales/cart-panel";
@@ -17,6 +18,25 @@ export default function QuickSalesPage() {
   const cart = useCart();
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const products: Product[] = data?.items ?? [];
+  const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
+
+  const categories = useMemo(() => {
+    const unique = new Set(
+      products.map((product) => product.category?.trim()).filter((category): category is string => Boolean(category)),
+    );
+    const list = Array.from(unique).sort((a, b) => a.localeCompare(b, "tr"));
+    if (products.some((product) => !product.category?.trim())) {
+      list.push("Diğer");
+    }
+    return ["Tümü", ...list];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === "Tümü") {
+      return products;
+    }
+    return products.filter((product) => (product.category?.trim() ?? "Diğer") === selectedCategory);
+  }, [products, selectedCategory]);
 
   async function checkout() {
     const clientRequestId = uuidv4();
@@ -59,7 +79,26 @@ export default function QuickSalesPage() {
           <p className="text-sm text-zinc-500">Ürün seç → ödeme → tamamla (3 tık).</p>
         </div>
 
-        <ProductGrid products={products} onPick={cart.addProduct} />
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => {
+            const isActive = category === selectedCategory;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                className={[
+                  "rounded-full border px-3 py-1 text-sm transition",
+                  isActive ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white hover:border-zinc-400",
+                ].join(" ")}
+              >
+                {category}
+              </button>
+            );
+          })}
+        </div>
+
+        <ProductGrid products={filteredProducts} onPick={cart.addProduct} />
       </div>
 
       <CartPanel onCheckout={checkout} />

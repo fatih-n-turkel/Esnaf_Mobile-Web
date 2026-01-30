@@ -2,18 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/store/auth";
 
-const items = [
+const baseItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/sales/quick", label: "Hızlı Satış" },
   { href: "/products", label: "Ürünler" },
   { href: "/stock", label: "Stok" },
+  { href: "/analysis", label: "Analiz" },
   { href: "/notifications", label: "Bildirimler" },
   { href: "/settings", label: "Ayarlar" },
 ];
 
 export default function SidebarNav() {
   const path = usePathname();
+  const user = useAuth((state) => state.user);
+  const items = [...baseItems];
+  if (user?.role === "ADMİN") {
+    items.push({ href: "/admin", label: "Admin" });
+  }
+  if (user?.role === "MÜDÜR") {
+    items.push({ href: "/manager", label: "Müdür" });
+  }
+  if (user?.role === "PERSONEL") {
+    items.push({ href: "/personnel", label: "Personel" });
+  }
 
   return (
     <aside className="w-64 hidden md:block border-r bg-white min-h-screen">

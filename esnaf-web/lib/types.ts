@@ -23,6 +23,7 @@ export type SaleItem = {
   unitSalePrice: number;
   unitCostPrice: number;
   vatRate: number;
+  maxStock?: number;
 };
 
 export type Sale = {
@@ -42,4 +43,14 @@ export type Sale = {
   netProfit: number;
 
   items: SaleItem[];
+};
+
+export type Category = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+export type Settings = {
+  defaultVatRate: number;
 };

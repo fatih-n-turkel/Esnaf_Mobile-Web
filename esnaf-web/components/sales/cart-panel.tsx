@@ -36,30 +36,38 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
             </div>
           </div>
         ))}
+        {cart.warning && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            {cart.warning}
+          </div>
+        )}
         {!cart.items.length && <div className="text-sm text-zinc-500 py-6">Ürün seçerek başlayın.</div>}
       </div>
 
       <div className="mt-4 border-t pt-4 space-y-2">
         <div className="text-sm font-medium">Ödeme</div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {(["CASH", "CARD"] as const).map((t) => (
             <button
               key={t}
               onClick={() => cart.setPaymentType(t)}
               className={[
-                "rounded-xl border px-2 py-2 text-sm",
-                cart.paymentType === t ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50",
+                "rounded-2xl border px-3 py-3 text-sm font-medium flex items-center justify-center gap-2 transition",
+                cart.paymentType === t
+                  ? "bg-zinc-900 text-white border-zinc-900 shadow-sm"
+                  : "bg-white hover:bg-zinc-50 border-zinc-200",
               ].join(" ")}
             >
+              <span className="text-base">{t === "CASH" ? "💵" : "💳"}</span>
               {t === "CASH" ? "Nakit" : t === "CARD" ? "Kart" : ""}
             </button>
           ))}
         </div>
 
         {cart.paymentType === "CARD" && (
-          <div className="rounded-xl border p-3 bg-zinc-50">
+          <div className="rounded-2xl border p-3 bg-zinc-50">
             <div className="text-xs text-zinc-500 mb-2">POS Komisyonu</div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <select
                 value={cart.posFeeType}
                 onChange={(e) => cart.setPosFeeType(e.target.value as any)}
@@ -71,7 +79,7 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
               <input
                 value={String(cart.posFeeValue)}
                 onChange={(e) => cart.setPosFeeValue(Number(e.target.value))}
-                className="flex-1 rounded-lg border px-3 py-2 text-sm bg-white"
+                className="flex-1 min-w-[120px] rounded-lg border px-3 py-2 text-sm bg-white"
                 placeholder={cart.posFeeType === "RATE" ? "0.02 = %2" : "5 = 5₺"}
               />
             </div>

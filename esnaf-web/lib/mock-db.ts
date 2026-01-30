@@ -1,4 +1,4 @@
-import { Product, Sale } from "./types";
+import { Category, Product, Sale, Settings } from "./types";
 import { randomUUID } from "crypto";
 
 const now = () => new Date().toISOString();
@@ -6,6 +6,8 @@ const now = () => new Date().toISOString();
 // In-memory (dev demo). Gerçekte DB/Prisma/Backend’e taşınacak.
 export const db = {
   products: [] as Product[],
+  categories: [] as Category[],
+  settings: { defaultVatRate: 0.2 } as Settings,
   sales: [] as Sale[],
   saleByClientReqId: new Map<string, Sale>(),
 };
@@ -13,7 +15,7 @@ export const db = {
 function seedOnce() {
   if (db.products.length) return;
 
-  db.products.push(
+  const seededProducts: Product[] = [
     {
       id: randomUUID(),
       name: "Su 0.5L",
@@ -50,13 +52,66 @@ function seedOnce() {
       isActive: true,
       updatedAt: now(),
     }
+  ];
+
+  db.products.push(...seededProducts);
+
+  const categorySet = new Set(
+    seededProducts.map((product) => product.category).filter((category): category is string => Boolean(category))
+  );
+  db.categories.push(
+    ...Array.from(categorySet).map((name) => ({
+      id: randomUUID(),
+      name,
+      createdAt: now(),
+    }))
   );
 }
 
 seedOnce();
+seedSalesOnce();
 
 export function listProducts() {
   return db.products.filter((p) => p.isActive);
+}
+
+export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">) {
+  const created: Product = {
+    ...input,
+    id: randomUUID(),
+    isActive: true,
+    updatedAt: now(),
+  };
+  db.products.unshift(created);
+  if (created.category) {
+    ensureCategory(created.category);
+  }
+  return created;
+}
+
+function ensureCategory(name: string) {
+  const exists = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (exists) return exists;
+  const created: Category = { id: randomUUID(), name, createdAt: now() };
+  db.categories.unshift(created);
+  return created;
+}
+
+export function listCategories() {
+  return db.categories.slice().sort((a, b) => a.name.localeCompare(b.name, "tr"));
+}
+
+export function addCategory(name: string) {
+  return ensureCategory(name.trim());
+}
+
+export function getSettings() {
+  return db.settings;
+}
+
+export function updateSettings(partial: Partial<Settings>) {
+  db.settings = { ...db.settings, ...partial };
+  return db.settings;
 }
 
 export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "id" | "createdAt">) {
@@ -86,4 +141,63 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
 
 export function listSales(limit = 20) {
   return db.sales.slice(0, limit);
+}
+
+function seedSalesOnce() {
+  if (db.sales.length) return;
+
+  const products = db.products;
+  const sampleSales: Array<{ daysAgo: number; items: Array<{ productId: string; qty: number }> }> = [
+    { daysAgo: 0, items: [{ productId: products[0].id, qty: 6 }, { productId: products[1].id, qty: 3 }] },
+    { daysAgo: 1, items: [{ productId: products[2].id, qty: 4 }] },
+    { daysAgo: 3, items: [{ productId: products[1].id, qty: 5 }] },
+    { daysAgo: 7, items: [{ productId: products[0].id, qty: 10 }, { productId: products[2].id, qty: 2 }] },
+    { daysAgo: 14, items: [{ productId: products[0].id, qty: 8 }] },
+    { daysAgo: 30, items: [{ productId: products[1].id, qty: 7 }] },
+    { daysAgo: 60, items: [{ productId: products[2].id, qty: 6 }] },
+    { daysAgo: 120, items: [{ productId: products[0].id, qty: 12 }] },
+    { daysAgo: 200, items: [{ productId: products[1].id, qty: 9 }] },
+    { daysAgo: 320, items: [{ productId: products[2].id, qty: 5 }] },
+  ];
+
+  for (const seed of sampleSales) {
+    const createdAt = new Date();
+    createdAt.setDate(createdAt.getDate() - seed.daysAgo);
+    const items = seed.items.map((entry) => {
+      const product = products.find((p) => p.id === entry.productId);
+      if (!product) {
+        throw new Error("Seed product not found");
+      }
+      return {
+        productId: product.id,
+        name: product.name,
+        qty: entry.qty,
+        unitSalePrice: product.salePrice,
+        unitCostPrice: product.costPrice,
+        vatRate: product.vatRate,
+      };
+    });
+
+    const totalRevenue = items.reduce((sum, it) => sum + it.qty * it.unitSalePrice, 0);
+    const totalCost = items.reduce((sum, it) => sum + it.qty * it.unitCostPrice, 0);
+    const totalVat = items.reduce((sum, it) => sum + it.qty * it.unitSalePrice * it.vatRate, 0);
+    const netProfit = totalRevenue - totalCost;
+
+    const created: Sale = {
+      id: randomUUID(),
+      clientRequestId: randomUUID(),
+      createdAt: createdAt.toISOString(),
+      createdBy: { id: "seed-user", name: "Seed", role: "ADMİN" },
+      paymentType: "CASH",
+      posFeeType: "RATE",
+      posFeeValue: 0,
+      posFeeAmount: 0,
+      totalRevenue,
+      totalCost,
+      totalVat,
+      netProfit,
+      items,
+    };
+    db.sales.push(created);
+  }
 }

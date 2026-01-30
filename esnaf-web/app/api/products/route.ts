@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
-import { listProducts } from "@/lib/mock-db";
+import { addProduct, getSettings, listProducts } from "@/lib/mock-db";
 
 export async function GET() {
   return NextResponse.json({ items: listProducts() });
+}
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const name = String(body.name ?? "").trim();
+  const category = String(body.category ?? "").trim();
+  const salePrice = Number(body.salePrice ?? 0);
+  const costPrice = Number(body.costPrice ?? 0);
+  const stockOnHand = Number(body.stockOnHand ?? 0);
+  const criticalStockLevel = Number(body.criticalStockLevel ?? 0);
+  const vatRate =
+    body.vatRate !== undefined && body.vatRate !== null ? Number(body.vatRate) : getSettings().defaultVatRate;
+
+  if (!name) {
+    return NextResponse.json({ error: "Ürün adı zorunlu." }, { status: 400 });
+  }
+
+  if (Number.isNaN(salePrice) || Number.isNaN(costPrice) || Number.isNaN(stockOnHand)) {
+    return NextResponse.json({ error: "Fiyat ve stok alanları sayısal olmalı." }, { status: 400 });
+  }
+
+  const created = addProduct({
+    name,
+    category: category || undefined,
+    salePrice,
+    costPrice,
+    vatRate: Number.isNaN(vatRate) ? getSettings().defaultVatRate : vatRate,
+    criticalStockLevel: Number.isNaN(criticalStockLevel) ? 0 : criticalStockLevel,
+    stockOnHand,
+  });
+
+  return NextResponse.json({ item: created });
 }

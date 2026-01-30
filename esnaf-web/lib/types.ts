@@ -12,6 +12,7 @@ export type Product = {
   vatRate: number;     // 0.01 = %1, 0.20 = %20
   criticalStockLevel: number;
   stockOnHand: number;
+  qrCode?: string;
   isActive: boolean;
   updatedAt: string;
 };

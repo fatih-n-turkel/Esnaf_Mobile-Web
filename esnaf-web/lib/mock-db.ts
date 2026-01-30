@@ -2,6 +2,7 @@ import { Category, Product, Sale, Settings } from "./types";
 import { randomUUID } from "crypto";
 
 const now = () => new Date().toISOString();
+const makeQrCode = (name: string) => `QR-${name.replace(/\s+/g, "-").toUpperCase()}-${randomUUID().slice(0, 6)}`;
 
 // In-memory (dev demo). Gerçekte DB/Prisma/Backend’e taşınacak.
 export const db = {
@@ -25,6 +26,7 @@ function seedOnce() {
       vatRate: 0.01,
       criticalStockLevel: 10,
       stockOnHand: 85,
+      qrCode: "QR-SU-05L-0001",
       isActive: true,
       updatedAt: now(),
     },
@@ -37,6 +39,7 @@ function seedOnce() {
       vatRate: 0.1,
       criticalStockLevel: 8,
       stockOnHand: 12,
+      qrCode: "QR-CIPS-0002",
       isActive: true,
       updatedAt: now(),
     },
@@ -49,6 +52,7 @@ function seedOnce() {
       vatRate: 0.2,
       criticalStockLevel: 5,
       stockOnHand: 4,
+      qrCode: "QR-DEFTER-A4-0003",
       isActive: true,
       updatedAt: now(),
     }
@@ -81,12 +85,22 @@ export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">
     id: randomUUID(),
     isActive: true,
     updatedAt: now(),
+    qrCode: input.qrCode ?? makeQrCode(input.name),
   };
   db.products.unshift(created);
   if (created.category) {
     ensureCategory(created.category);
   }
   return created;
+}
+
+export function ensureProductQrCode(productId: string, qrCode?: string) {
+  const product = db.products.find((p) => p.id === productId);
+  if (!product) return null;
+  const nextCode = qrCode?.trim() || product.qrCode || makeQrCode(product.name);
+  product.qrCode = nextCode;
+  product.updatedAt = now();
+  return product;
 }
 
 function ensureCategory(name: string) {

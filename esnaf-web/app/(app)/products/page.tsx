@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Category, Product, Settings } from "@/lib/types";
+import { v4 as uuidv4 } from "uuid";
 
 async function fetchProducts() {
   const r = await fetch("/api/products", { cache: "no-store" });
@@ -29,6 +30,9 @@ export default function ProductsPage() {
   const categories: Category[] = categoryData?.items ?? [];
   const settings: Settings | undefined = settingsData?.item;
 
+  const [showForm, setShowForm] = useState(false);
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
+  const [qrBusy, setQrBusy] = useState(false);
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -37,6 +41,7 @@ export default function ProductsPage() {
     stockOnHand: "",
     criticalStockLevel: "",
     vatRate: "",
+    qrCode: "",
   });
 
   const vatDefault = useMemo(() => (settings?.defaultVatRate ?? 0.2) * 100, [settings]);
@@ -50,6 +55,7 @@ export default function ProductsPage() {
       stockOnHand: Number(form.stockOnHand),
       criticalStockLevel: Number(form.criticalStockLevel || 0),
       vatRate: form.vatRate ? Number(form.vatRate) / 100 : undefined,
+      qrCode: form.qrCode || undefined,
     };
 
     const r = await fetch("/api/products", {
@@ -72,7 +78,10 @@ export default function ProductsPage() {
       stockOnHand: "",
       criticalStockLevel: "",
       vatRate: "",
+      qrCode: "",
     });
+
+    setShowForm(false);
 
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["products"] }),
@@ -95,93 +104,75 @@ export default function ProductsPage() {
     await qc.invalidateQueries({ queryKey: ["categories"] });
   }
 
+  async function openQr(product: Product) {
+    setQrBusy(true);
+    let next = product;
+    if (!product.qrCode) {
+      const r = await fetch(`/api/products/${product.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qrCode: uuidv4() }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert(err?.error ?? "QR oluşturulamadı.");
+        setQrBusy(false);
+        return;
+      }
+      const res = await r.json();
+      next = res.item;
+      await qc.invalidateQueries({ queryKey: ["products"] });
+    }
+    setQrProduct(next);
+    setQrBusy(false);
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Ürünler</h1>
-        <p className="text-sm text-zinc-500">Ürün adları, kategori yönetimi ve yeni ürün ekleme.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold">Ürünler</h1>
+          <p className="text-sm text-zinc-500">Ürün adları, kategori yönetimi ve QR etiketleri.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="rounded-xl bg-zinc-900 text-white px-4 py-2 text-sm font-semibold"
+        >
+          Yeni Ürün Ekle
+        </button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="font-medium mb-3">Ürün Listesi</div>
-          <div className="space-y-2">
-            {products.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm">
-                <div>
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-xs text-zinc-500">{p.category ?? "Kategori yok"}</div>
-                </div>
-                <div className="text-xs text-zinc-500">KDV {(p.vatRate * 100).toFixed(0)}%</div>
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="font-medium mb-3">Ürün Listesi</div>
+        <div className="space-y-2">
+          {products.map((p) => (
+            <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm">
+              <div>
+                <div className="font-medium">{p.name}</div>
+                <div className="text-xs text-zinc-500">{p.category ?? "Kategori yok"}</div>
               </div>
-            ))}
-            {!products.length && <div className="text-sm text-zinc-500">Henüz ürün yok.</div>}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="font-medium mb-3">Yeni Ürün Ekle</div>
-          <div className="grid gap-2">
-            <input
-              className="rounded-lg border px-3 py-2 text-sm"
-              placeholder="Ürün adı"
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-            <input
-              className="rounded-lg border px-3 py-2 text-sm"
-              placeholder="Kategori (ör. İçecek)"
-              list="category-list"
-              value={form.category}
-              onChange={(event) => setForm({ ...form, category: event.target.value })}
-            />
-            <datalist id="category-list">
-              {categories.map((category) => (
-                <option key={category.id} value={category.name} />
-              ))}
-            </datalist>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="Satış fiyatı"
-                value={form.salePrice}
-                onChange={(event) => setForm({ ...form, salePrice: event.target.value })}
-              />
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="Maliyet"
-                value={form.costPrice}
-                onChange={(event) => setForm({ ...form, costPrice: event.target.value })}
-              />
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-zinc-500">KDV {(p.vatRate * 100).toFixed(0)}%</div>
+                <span
+                  className={[
+                    "text-xs rounded-full px-2 py-1",
+                    p.qrCode ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600",
+                  ].join(" ")}
+                >
+                  {p.qrCode ? "QR var" : "QR yok"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openQr(p)}
+                  className="rounded-lg border px-3 py-1 text-xs hover:bg-zinc-50"
+                >
+                  {p.qrCode ? "QR Görüntüle" : "QR Oluştur"}
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="Stok"
-                value={form.stockOnHand}
-                onChange={(event) => setForm({ ...form, stockOnHand: event.target.value })}
-              />
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="Kritik stok"
-                value={form.criticalStockLevel}
-                onChange={(event) => setForm({ ...form, criticalStockLevel: event.target.value })}
-              />
-            </div>
-            <input
-              className="rounded-lg border px-3 py-2 text-sm"
-              placeholder={`KDV oranı (varsayılan %${vatDefault.toFixed(0)})`}
-              value={form.vatRate}
-              onChange={(event) => setForm({ ...form, vatRate: event.target.value })}
-            />
-            <button
-              type="button"
-              onClick={addProduct}
-              className="rounded-xl bg-zinc-900 text-white py-2 text-sm font-semibold"
-            >
-              Ürünü Kaydet
-            </button>
-          </div>
+          ))}
+          {!products.length && <div className="text-sm text-zinc-500">Henüz ürün yok.</div>}
         </div>
       </div>
 
@@ -202,6 +193,138 @@ export default function ProductsPage() {
           {!categories.length && <span className="text-xs text-zinc-500">Kategori yok.</span>}
         </div>
       </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-medium">Yeni Ürün Ekle</div>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                Kapat
+              </button>
+            </div>
+            <div className="grid gap-2">
+              <input
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder="Ürün adı"
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder="Kategori (ör. İçecek)"
+                list="category-list"
+                value={form.category}
+                onChange={(event) => setForm({ ...form, category: event.target.value })}
+              />
+              <datalist id="category-list">
+                {categories.map((category) => (
+                  <option key={category.id} value={category.name} />
+                ))}
+              </datalist>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  placeholder="Satış fiyatı"
+                  value={form.salePrice}
+                  onChange={(event) => setForm({ ...form, salePrice: event.target.value })}
+                />
+                <input
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  placeholder="Maliyet"
+                  value={form.costPrice}
+                  onChange={(event) => setForm({ ...form, costPrice: event.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  placeholder="Stok"
+                  value={form.stockOnHand}
+                  onChange={(event) => setForm({ ...form, stockOnHand: event.target.value })}
+                />
+                <input
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  placeholder="Kritik stok"
+                  value={form.criticalStockLevel}
+                  onChange={(event) => setForm({ ...form, criticalStockLevel: event.target.value })}
+                />
+              </div>
+              <input
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder={`KDV oranı (varsayılan %${vatDefault.toFixed(0)})`}
+                value={form.vatRate}
+                onChange={(event) => setForm({ ...form, vatRate: event.target.value })}
+              />
+              <div className="grid gap-1">
+                <input
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  placeholder="QR kodu (boşsa otomatik oluşturulur)"
+                  value={form.qrCode}
+                  onChange={(event) => setForm({ ...form, qrCode: event.target.value })}
+                />
+                <div className="text-xs text-zinc-500">
+                  Otomatik QR oluşturma ile ürün etiketi hızlıca hazırlanır.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={addProduct}
+                className="rounded-xl bg-zinc-900 text-white py-2 text-sm font-semibold"
+              >
+                Ürünü Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {qrProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="font-medium">QR Etiketi</div>
+              <button
+                type="button"
+                onClick={() => setQrProduct(null)}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                Kapat
+              </button>
+            </div>
+            <div className="rounded-xl border bg-zinc-50 p-3 text-sm">
+              <div className="font-medium mb-1">{qrProduct.name}</div>
+              <div className="text-xs text-zinc-500">QR Kodu: {qrProduct.qrCode}</div>
+            </div>
+            <div className="grid gap-2 text-sm">
+              <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
+                QR Görüntüle / Paylaş
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
+                  PDF (A4) İndir
+                </button>
+                <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
+                  JPG İndir
+                </button>
+              </div>
+              <div className="text-xs text-zinc-500">
+                Etiket şablonu yazdırıp ürünlere yapıştırmaya uygundur.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {qrBusy && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20 text-sm text-white">
+          QR hazırlanıyor...
+        </div>
+      )}
     </div>
   );
 }

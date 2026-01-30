@@ -64,6 +64,30 @@ export default function AnalysisPage() {
           );
         })}
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+          <div className="font-medium">Dönemsel Raporlar</div>
+          <ul className="text-sm text-zinc-600 list-disc pl-5 space-y-1">
+            <li>Günlük / haftalık / aylık / yıllık / çeyrek dönem raporları</li>
+            <li>Ciro ve net kâr grafikleri</li>
+            <li>En çok satan ürünler</li>
+            <li>En çok kâr bırakan ürünler</li>
+            <li>Ödeme tipi dağılımı</li>
+            <li>Personel bazlı satış performansı</li>
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+          <div className="font-medium">Maliyet & Gider Analizi</div>
+          <ul className="text-sm text-zinc-600 list-disc pl-5 space-y-1">
+            <li>Ürün bazlı maliyet takibi</li>
+            <li>Ödeme türüne göre giderler: Nakit, Kart (POS komisyonu / sabit gider)</li>
+            <li>Satış anında ve raporlarda: Satış geliri, ürün maliyeti, POS giderleri</li>
+            <li>Net kâr / zarar kırılımı</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

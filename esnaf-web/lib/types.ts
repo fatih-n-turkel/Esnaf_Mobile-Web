@@ -84,4 +84,6 @@ export type Category = {
 
 export type Settings = {
   defaultVatRate: number;
+  posFeeType: PosFeeType;
+  posFeeValue: number;
 };

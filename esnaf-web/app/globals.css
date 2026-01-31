@@ -6,10 +6,18 @@
   color-scheme: light;
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
 body {
-  @apply bg-zinc-50 text-zinc-900;
+  @apply bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+@layer base {
+  ::selection {
+    @apply bg-slate-900 text-white;
+  }
 }

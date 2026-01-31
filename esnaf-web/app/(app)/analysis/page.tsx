@@ -73,6 +73,13 @@ export default function AnalysisPage() {
     });
   }, [personnelUsers, sales]);
 
+  const periodSummaries = useMemo(() => {
+    return analyticsPeriods.map((period) => ({
+      period,
+      summary: calcAnalyticsForPeriod(scopedSales, period),
+    }));
+  }, [scopedSales]);
+
   const managerSummaries = useMemo(() => {
     const managers = people.filter((person) => person.role === "MÜDÜR");
     return managers.map((manager) => {
@@ -107,6 +114,169 @@ export default function AnalysisPage() {
     );
   }, [scopedSales]);
 
+  const downloadBlob = (content: BlobPart, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const csvEscape = (value: string | number | null | undefined) => {
+    const stringValue = value === null || value === undefined ? "" : String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, "\"\"")}"`;
+    }
+    return stringValue;
+  };
+
+  const handleExportCsv = () => {
+    const rows: Array<Array<string | number>> = [];
+    rows.push(["Analiz Raporu", new Date().toLocaleString("tr-TR")]);
+    rows.push([]);
+    rows.push(["Dönem", "Ciro", "Satış", "Kâr", "Zarar"]);
+    periodSummaries.forEach(({ period, summary }) => {
+      rows.push([period.label, summary.revenue, summary.soldQty, summary.profit, summary.loss]);
+    });
+    rows.push([]);
+    rows.push(["Finansal Özet", "Tutar"]);
+    rows.push(["Toplam Satış", financialSummary.revenue]);
+    rows.push(["Toplam Maliyet", financialSummary.cost]);
+    rows.push(["KDV", financialSummary.vat]);
+    rows.push(["POS Gideri", financialSummary.posFee]);
+    rows.push(["Kâr", financialSummary.profit]);
+    rows.push(["Zarar", financialSummary.loss]);
+    rows.push([]);
+    rows.push(["Bayi", "Dönem", "Ciro", "Kâr", "Zarar", "Satış", "Stok"]);
+    branchSummaries.forEach(({ branch, branchStock, analytics }) => {
+      analytics.forEach(({ period, summary }) => {
+        rows.push([branch.name, period.label, summary.revenue, summary.profit, summary.loss, summary.soldQty, branchStock]);
+      });
+    });
+    rows.push([]);
+    rows.push(["Personel", "Kullanıcı Adı", "Toplam Ciro", "Toplam Kâr", "Son Satış"]);
+    personnelSummaries.forEach(({ person, totalRevenue, totalProfit, lastSale }) => {
+      rows.push([
+        person.name,
+        person.username,
+        totalRevenue,
+        totalProfit,
+        lastSale ? new Date(lastSale).toLocaleDateString("tr-TR") : "-",
+      ]);
+    });
+    const csvContent = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+    downloadBlob(csvContent, `analiz-raporu-${Date.now()}.csv`, "text/csv;charset=utf-8");
+  };
+
+  const escapeHtml = (value: string) =>
+    value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  const handleExportPdf = () => {
+    const reportWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!reportWindow) return;
+
+    const periodRows = periodSummaries
+      .map(
+        ({ period, summary }) =>
+          `<tr><td>${escapeHtml(period.label)}</td><td>${escapeHtml(fmtTRY(summary.revenue))}</td><td>${
+            summary.soldQty
+          }</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(fmtTRY(summary.loss))}</td></tr>`
+      )
+      .join("");
+
+    const branchRows = branchSummaries
+      .map(({ branch, branchStock, analytics }) => {
+        const analyticsRows = analytics
+          .map(
+            ({ period, summary }) =>
+              `<tr><td>${escapeHtml(branch.name)}</td><td>${escapeHtml(period.label)}</td><td>${escapeHtml(
+                fmtTRY(summary.revenue)
+              )}</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(
+                fmtTRY(summary.loss)
+              )}</td><td>${summary.soldQty}</td><td>${branchStock}</td></tr>`
+          )
+          .join("");
+        return analyticsRows;
+      })
+      .join("");
+
+    const personnelRows = personnelSummaries
+      .map(
+        ({ person, totalRevenue, totalProfit, lastSale }) =>
+          `<tr><td>${escapeHtml(person.name)}</td><td>@${escapeHtml(person.username)}</td><td>${escapeHtml(
+            fmtTRY(totalRevenue)
+          )}</td><td>${escapeHtml(fmtTRY(totalProfit))}</td><td>${
+            lastSale ? escapeHtml(new Date(lastSale).toLocaleDateString("tr-TR")) : "-"
+          }</td></tr>`
+      )
+      .join("");
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html lang="tr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Analiz Raporu</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+            h1, h2 { margin-bottom: 8px; }
+            p { margin-top: 0; color: #6b7280; }
+            table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 12px; }
+            th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Analiz Raporu</h1>
+          <p>Tarih: ${escapeHtml(new Date().toLocaleString("tr-TR"))}</p>
+
+          <h2>Dönemsel Özet</h2>
+          <table>
+            <thead>
+              <tr><th>Dönem</th><th>Ciro</th><th>Satış</th><th>Kâr</th><th>Zarar</th></tr>
+            </thead>
+            <tbody>${periodRows}</tbody>
+          </table>
+
+          <h2>Finansal Özet</h2>
+          <table>
+            <tbody>
+              <tr><th>Toplam Satış</th><td>${escapeHtml(fmtTRY(financialSummary.revenue))}</td></tr>
+              <tr><th>Toplam Maliyet</th><td>${escapeHtml(fmtTRY(financialSummary.cost))}</td></tr>
+              <tr><th>KDV</th><td>${escapeHtml(fmtTRY(financialSummary.vat))}</td></tr>
+              <tr><th>POS Gideri</th><td>${escapeHtml(fmtTRY(financialSummary.posFee))}</td></tr>
+              <tr><th>Kâr</th><td>${escapeHtml(fmtTRY(financialSummary.profit))}</td></tr>
+              <tr><th>Zarar</th><td>${escapeHtml(fmtTRY(financialSummary.loss))}</td></tr>
+            </tbody>
+          </table>
+
+          <h2>Bayi Analizleri</h2>
+          <table>
+            <thead>
+              <tr><th>Bayi</th><th>Dönem</th><th>Ciro</th><th>Kâr</th><th>Zarar</th><th>Satış</th><th>Stok</th></tr>
+            </thead>
+            <tbody>${branchRows}</tbody>
+          </table>
+
+          <h2>Personel Performansı</h2>
+          <table>
+            <thead>
+              <tr><th>Personel</th><th>Kullanıcı Adı</th><th>Ciro</th><th>Kâr</th><th>Son Satış</th></tr>
+            </thead>
+            <tbody>${personnelRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.onload = () => {
+      reportWindow.print();
+    };
+  };
+
   if (!canSeePersonnel) {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece admin ve müdür kullanıcılar içindir.</div>;
   }
@@ -133,6 +303,22 @@ export default function AnalysisPage() {
         <h1 className="text-xl font-semibold">Analiz</h1>
         <p className="text-sm text-zinc-500">Günlükten yıllığa satış, stok, kâr ve zarar analizi.</p>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className="rounded-lg border px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+          type="button"
+          onClick={handleExportCsv}
+        >
+          CSV İndir
+        </button>
+        <button
+          className="rounded-lg border px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+          type="button"
+          onClick={handleExportPdf}
+        >
+          PDF İndir
+        </button>
+      </div>
 
       {user?.role === "ADMİN" && (
         <div className="rounded-2xl border bg-white p-4 shadow-sm flex flex-wrap items-center gap-3">
@@ -153,55 +339,49 @@ export default function AnalysisPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {analyticsPeriods.map((period) => {
-          const summary = calcAnalyticsForPeriod(scopedSales, period);
-          return (
-            <div key={period.key} className="rounded-2xl border bg-white p-4 shadow-sm">
-              <div className="font-medium">{period.label}</div>
-              <div className="text-xs text-zinc-500 mb-3">Son {period.days} gün</div>
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>Ciro</span>
-                  <span className="font-medium">{fmtTRY(summary.revenue)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Satılan</span>
-                  <span>{summary.soldQty} adet</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Stok</span>
-                  <span>{totalStock} adet</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Kâr</span>
-                  <span className="text-emerald-600 font-medium">{fmtTRY(summary.profit)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Zarar</span>
-                  <span className="text-red-600 font-medium">{fmtTRY(summary.loss)}</span>
-                </div>
+        {periodSummaries.map(({ period, summary }) => (
+          <div key={period.key} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <div className="font-medium">{period.label}</div>
+            <div className="text-xs text-zinc-500 mb-3">Son {period.days} gün</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Ciro</span>
+                <span className="font-medium">{fmtTRY(summary.revenue)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Satılan</span>
+                <span>{summary.soldQty} adet</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Stok</span>
+                <span>{totalStock} adet</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Kâr</span>
+                <span className="text-emerald-600 font-medium">{fmtTRY(summary.profit)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Zarar</span>
+                <span className="text-red-600 font-medium">{fmtTRY(summary.loss)}</span>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
           <div className="font-medium">Dönemsel Raporlar</div>
           <div className="grid gap-2 text-xs md:grid-cols-2">
-            {analyticsPeriods.map((period) => {
-              const summary = calcAnalyticsForPeriod(scopedSales, period);
-              return (
-                <div key={period.key} className="rounded-lg border bg-zinc-50 px-3 py-2">
-                  <div className="font-medium">{period.label}</div>
-                  <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-                  <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-                  <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
-                  <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
-                </div>
-              );
-            })}
+            {periodSummaries.map(({ period, summary }) => (
+              <div key={period.key} className="rounded-lg border bg-zinc-50 px-3 py-2">
+                <div className="font-medium">{period.label}</div>
+                <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
+                <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
+                <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
+                <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+              </div>
+            ))}
           </div>
         </div>
 

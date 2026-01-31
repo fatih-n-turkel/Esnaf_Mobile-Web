@@ -166,7 +166,7 @@ class ProductsRepo {
     final nextByBranch = Map<String, double>.from(p.stockByBranch);
     final current = nextByBranch[branchId] ?? 0;
     final rawNext = current + delta;
-    final next = rawNext < 0 ? 0 : rawNext;
+    final next = rawNext < 0 ? 0.0 : rawNext;
     nextByBranch[branchId] = next;
     final total = nextByBranch.values.fold<double>(0, (sum, value) => sum + value);
     await upsert(

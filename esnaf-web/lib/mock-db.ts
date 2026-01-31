@@ -281,7 +281,10 @@ export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">
   return created;
 }
 
-export function updateProductMeta(productId: string, updates: { qrCode?: string; vatRate?: number }) {
+export function updateProductMeta(
+  productId: string,
+  updates: { qrCode?: string; vatRate?: number; category?: string | null }
+) {
   const db = readDatabase();
   const product = db.products.find((p) => p.id === productId);
   if (!product) return null;
@@ -289,6 +292,13 @@ export function updateProductMeta(productId: string, updates: { qrCode?: string;
   product.qrCode = nextCode;
   if (typeof updates.vatRate === "number" && !Number.isNaN(updates.vatRate)) {
     product.vatRate = updates.vatRate;
+  }
+  if (updates.category !== undefined) {
+    const nextCategory = updates.category ? updates.category.trim() : "";
+    product.category = nextCategory || undefined;
+    if (nextCategory) {
+      ensureCategory(db, nextCategory);
+    }
   }
   product.updatedAt = now();
   writeDatabase(db);
@@ -313,6 +323,21 @@ export function addCategory(name: string) {
   const created = ensureCategory(db, name.trim());
   writeDatabase(db);
   return created;
+}
+
+export function renameCategory(categoryId: string, name: string) {
+  const db = readDatabase();
+  const category = db.categories.find((c) => c.id === categoryId);
+  if (!category) return null;
+  const nextName = name.trim();
+  if (!nextName) return null;
+  const prevName = category.name;
+  category.name = nextName;
+  db.products = db.products.map((product) =>
+    product.category === prevName ? { ...product, category: nextName, updatedAt: now() } : product
+  );
+  writeDatabase(db);
+  return category;
 }
 
 export function getSettings() {
@@ -346,7 +371,20 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
       if (branchId) {
         if (!p.stockByBranch) p.stockByBranch = {};
         const currentStock = p.stockByBranch[branchId] ?? 0;
-        p.stockByBranch[branchId] = Math.max(0, currentStock - it.qty);
+        const nextStock = Math.max(0, currentStock - it.qty);
+        p.stockByBranch[branchId] = nextStock;
+        if (currentStock > 0 && nextStock === 0) {
+          const branchName = db.branches.find((b) => b.id === branchId)?.name ?? "Şube";
+          db.notifications.unshift({
+            id: randomUUID(),
+            title: "Stok tükendi",
+            message: `${p.name} ürünü ${branchName} için tükendi.`,
+            createdAt: now(),
+            readAt: null,
+            scope: "BRANCH",
+            branchId,
+          });
+        }
       }
       const branchTotals = p.stockByBranch ? Object.values(p.stockByBranch) : [];
       p.stockOnHand = branchTotals.length ? branchTotals.reduce((sum, value) => sum + value, 0) : p.stockOnHand;

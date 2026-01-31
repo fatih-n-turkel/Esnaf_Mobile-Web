@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
@@ -39,8 +40,7 @@ class HomeScreen extends ConsumerWidget {
                 subtitle: const Text('3 tık: ürün seç → ödeme → tamamla'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  // TODO: Navigate to Quick Sale tab/screen.
-                  // For now, this is a no-op to avoid build errors.
+                  context.go('/sale');
                 },
               ),
             ),

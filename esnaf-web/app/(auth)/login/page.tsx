@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authenticate, getDemoUsers } from "@/lib/auth";
+import { DemoUser } from "@/lib/types";
 import { useAuth } from "@/store/auth";
 
 export default function LoginPage() {
@@ -13,10 +14,16 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [demoList, setDemoList] = useState(getDemoUsers());
+  const [demoList, setDemoList] = useState<DemoUser[]>([]);
 
   useEffect(() => {
-    setDemoList(getDemoUsers());
+    let active = true;
+    getDemoUsers().then((list) => {
+      if (active) setDemoList(list);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -29,8 +36,8 @@ export default function LoginPage() {
     return null;
   }
 
-  function handleLogin() {
-    const authUser = authenticate(username, password);
+  async function handleLogin() {
+    const authUser = await authenticate(username, password);
     if (!authUser) {
       setError("Kullanıcı adı veya şifre hatalı.");
       return;

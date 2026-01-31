@@ -41,6 +41,10 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     final branches = ref.watch(branchesRepoProvider).list();
     final activeBranchId = role == 'admin' ? _selectedBranchId : userBranchId;
     final products = repo.list(branchId: activeBranchId);
+    final allProducts = repo.list();
+    final visibleBranches = role == 'admin'
+        ? (_selectedBranchId.isEmpty ? branches : branches.where((b) => b.id == _selectedBranchId).toList())
+        : branches.where((b) => b.id == userBranchId).toList();
 
     final movBox = HiveBoxes.box(HiveBoxes.stockMovements);
     final moves = movBox.values
@@ -124,6 +128,50 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                           },
                     icon: const Icon(Icons.add),
                     label: const Text('Kaydet'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Bayi Bazlı Stok', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 220,
+                    child: ListView.separated(
+                      itemCount: allProducts.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, i) {
+                        final p = allProducts[i];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              if (visibleBranches.isEmpty) const Text('Bayi yok', style: TextStyle(color: Colors.black54)),
+                              if (visibleBranches.isNotEmpty)
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: visibleBranches
+                                      .map((branch) => Chip(
+                                            label: Text('${branch.name}: ${repo.stockForBranch(p, branch.id).toStringAsFixed(0)}'),
+                                          ))
+                                      .toList(),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),

@@ -30,6 +30,12 @@ export default function StockPage() {
     activeBranchId || user?.role !== "ADMİN"
       ? products.map((p) => ({ ...p, stockOnHand: getBranchStock(p, activeBranchId ?? undefined) }))
       : products;
+  const visibleBranches =
+    user?.role === "ADMİN"
+      ? activeBranchId
+        ? branches.filter((branch) => branch.id === activeBranchId)
+        : branches
+      : branches.filter((branch) => branch.id === user?.branchId);
 
   return (
     <div className="space-y-4">
@@ -79,6 +85,7 @@ export default function StockPage() {
               <th className="text-right p-3">Satış</th>
               <th className="text-right p-3">Maliyet</th>
               <th className="text-right p-3">Stok</th>
+              <th className="text-left p-3">Bayi stokları</th>
               <th className="text-right p-3">Kritik</th>
               <th className="text-right p-3">KDV</th>
             </tr>
@@ -95,13 +102,23 @@ export default function StockPage() {
                     {p.stockOnHand}
                   </span>
                 </td>
+                <td className="p-3">
+                  <div className="flex flex-col gap-1 text-xs text-zinc-600">
+                    {visibleBranches.map((branch) => (
+                      <span key={branch.id}>
+                        {branch.name}: {getBranchStock(p, branch.id)}
+                      </span>
+                    ))}
+                    {!visibleBranches.length && <span>—</span>}
+                  </div>
+                </td>
                 <td className="p-3 text-right">{p.criticalStockLevel}</td>
                 <td className="p-3 text-right">{(p.vatRate * 100).toFixed(0)}%</td>
               </tr>
             ))}
             {!displayProducts.length && (
               <tr>
-                <td className="p-6 text-zinc-500" colSpan={7}>
+                <td className="p-6 text-zinc-500" colSpan={8}>
                   Ürün yok.
                 </td>
               </tr>

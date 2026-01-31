@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { renameCategory } from "@/lib/mock-db";
+import { deleteCategory, renameCategory } from "@/lib/mock-db";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const body = await req.json().catch(() => ({}));
@@ -12,4 +12,12 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ error: "Kategori bulunamadı." }, { status: 404 });
   }
   return NextResponse.json({ item: updated });
+}
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const removed = deleteCategory(params.id);
+  if (!removed) {
+    return NextResponse.json({ error: "Kategori bulunamadı." }, { status: 404 });
+  }
+  return NextResponse.json({ item: removed });
 }

@@ -88,7 +88,7 @@ export default function ManagerPage() {
         password: "1234",
         name: form.name.trim(),
         role: "PERSONEL",
-        landingPath: "/personnel",
+        landingPath: "/sales/quick",
         branchId: targetBranch,
         managerId: user?.id ?? null,
       };

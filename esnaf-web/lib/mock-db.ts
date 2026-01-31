@@ -155,7 +155,7 @@ function buildSeedDatabase(): DatabaseFile {
       password: "cenk",
       name: "Cenk",
       role: "PERSONEL",
-      landingPath: "/personnel",
+      landingPath: "/sales/quick",
       branchId: branchMainId,
       managerId: "user-manager",
     },
@@ -305,6 +305,15 @@ export function updateProductMeta(
   return product;
 }
 
+export function deleteProduct(productId: string) {
+  const db = readDatabase();
+  const index = db.products.findIndex((p) => p.id === productId);
+  if (index === -1) return null;
+  const [removed] = db.products.splice(index, 1);
+  writeDatabase(db);
+  return removed;
+}
+
 function ensureCategory(db: DatabaseFile, name: string) {
   const exists = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
   if (exists) return exists;
@@ -338,6 +347,18 @@ export function renameCategory(categoryId: string, name: string) {
   );
   writeDatabase(db);
   return category;
+}
+
+export function deleteCategory(categoryId: string) {
+  const db = readDatabase();
+  const index = db.categories.findIndex((c) => c.id === categoryId);
+  if (index === -1) return null;
+  const [removed] = db.categories.splice(index, 1);
+  db.products = db.products.map((product) =>
+    product.category === removed.name ? { ...product, category: undefined, updatedAt: now() } : product
+  );
+  writeDatabase(db);
+  return removed;
 }
 
 export function getSettings() {

@@ -16,8 +16,9 @@ class HomeScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Seed error: $e')),
       data: (_) {
-        final sales = ref.watch(salesRepoProvider).listRecent(limit: 10);
-        final salesAll = ref.watch(salesRepoProvider).listRecent(limit: 200);
+        final salesRepo = ref.watch(salesRepoProvider);
+        final sales = salesRepo.listRecent(limit: 10);
+        final salesAll = salesRepo.listRecent(limit: 200);
         final products = ref.watch(productsRepoProvider).list();
         final critical = products.where((p) => p.stockQty <= p.criticalStock).toList();
         final today = DateTime.now();
@@ -96,14 +97,55 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     const Text('Son Satışlar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    if (sales.isEmpty) const Text('Henüz satış yok'),
-                    ...sales.map((s) => ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.receipt),
-                          title: Text(s.receiptNo),
-                          subtitle: Text('Toplam: ${s.totalGross.toStringAsFixed(2)} • Kâr: ${s.totalNetProfit.toStringAsFixed(2)}'),
-                        )),
+                    if (todaySales.isEmpty) const Text('Henüz satış yok'),
+                    ...todaySales.map((s) {
+                      final items = salesRepo.itemsOfSale(s.id);
+                      final time = TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(s.createdAt)).format(context);
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Satış • $time', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              if (items.isEmpty)
+                                const Text('Ürün bilgisi yok')
+                              else
+                                ...items.map(
+                                  (item) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${item.productName} x${item.qty.toStringAsFixed(0)}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text('₺${(item.qty * item.unitSalePrice).toStringAsFixed(2)}'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              const Divider(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Toplam', style: TextStyle(fontWeight: FontWeight.w600)),
+                                  Text('₺${s.totalGross.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),

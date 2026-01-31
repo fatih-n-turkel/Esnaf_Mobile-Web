@@ -148,6 +148,18 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              title: const Text('Hakkında • Açık Kaynak Lisansları'),
+              subtitle: const Text('Üçüncü taraf lisans metinlerini görüntüle'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: 'Esnaf Mobil',
+              ),
+            ),
+          ),
         ],
       ),
     );

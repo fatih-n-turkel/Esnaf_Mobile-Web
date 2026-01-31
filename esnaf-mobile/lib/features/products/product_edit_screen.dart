@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../data/models/models.dart';
 import '../../data/repositories/products_repo.dart';
@@ -87,8 +88,43 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
               children: [
                 Expanded(child: TextField(controller: stockQty, decoration: const InputDecoration(labelText: 'Mevcut stok'), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                 const SizedBox(width: 8),
-                Expanded(child: TextField(controller: qrValue, decoration: const InputDecoration(labelText: 'QR değeri'))),
+                Expanded(
+                  child: TextField(
+                    controller: qrValue,
+                    decoration: const InputDecoration(labelText: 'QR değeri'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('QR Etiketi', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  if (qrValue.text.trim().isEmpty)
+                    const Text(
+                      'QR değeri girildiğinde burada etiketi oluşur.',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    )
+                  else
+                    Center(
+                      child: QrImageView(
+                        data: qrValue.text.trim(),
+                        size: 140,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

@@ -58,12 +58,12 @@ class _QRSaleScreenState extends ConsumerState<QRSaleScreen> {
               if (v == null) return;
               if (v == last) return;
 
-              // MVP: QR value match by qrValue contains
+              final normalized = v.trim().toLowerCase();
               final repo = ref.read(productsRepoProvider);
               final products = repo.list();
               Product? found;
               for (final p in products) {
-                if (p.qrValue == v || v.contains(p.qrValue) || p.qrValue.contains(v)) {
+                if (p.qrValue.trim().toLowerCase() == normalized) {
                   found = p;
                   break;
                 }

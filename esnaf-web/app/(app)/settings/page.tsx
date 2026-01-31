@@ -62,6 +62,21 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-2">
+        <div className="font-medium">Hakkında • Açık Kaynak Lisansları</div>
+        <p className="text-sm text-zinc-500">
+          Ticari kullanım öncesi üçüncü taraf lisanslarını inceleyin.
+        </p>
+        <a
+          href="/THIRD_PARTY_NOTICES.md"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50"
+        >
+          Lisans Metinlerini Aç
+        </a>
+      </div>
+
     </div>
   );
 }

@@ -186,58 +186,6 @@ export default function AnalysisPage() {
         })}
       </div>
 
-      {user?.role === "ADMİN" && (
-        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
-          <div>
-            <div className="font-medium">Müdür Analizleri</div>
-            <p className="text-xs text-zinc-500">
-              Müdürlerin kendi satışları, yönettikleri bayiler ve personellerin performans özeti.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {managerSummaries.map((summary) => (
-              <div key={summary.manager.id} className="rounded-xl border bg-zinc-50 p-3 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="font-medium">{summary.manager.name}</div>
-                    <div className="text-xs text-zinc-500">@{summary.manager.username}</div>
-                    {summary.manager.branchId && (
-                      <div className="text-[11px] text-zinc-400">{branchLabel(branches, summary.manager.branchId)}</div>
-                    )}
-                  </div>
-                  <div className="text-xs text-zinc-500 text-right">
-                    Kendi satış: <span className="font-medium text-zinc-900">{summary.ownSales.length}</span>
-                    <div>Yönettiği satış: {summary.managedSales.length}</div>
-                  </div>
-                </div>
-                <div className="grid gap-2 md:grid-cols-3 text-xs">
-                  <div className="rounded-lg border bg-white px-3 py-2">
-                    <div className="font-medium">Kendi Performansı</div>
-                    <div className="text-zinc-500 mt-1">
-                      Ciro: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.totalRevenue, 0))}
-                    </div>
-                    <div className="text-zinc-500">Kâr: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.netProfit, 0))}</div>
-                  </div>
-                  <div className="rounded-lg border bg-white px-3 py-2">
-                    <div className="font-medium">Bağlı Bayiler</div>
-                    <div className="text-zinc-500 mt-1">
-                      {summary.managedBranches.map((branch) => branch.name).join(", ") || "Bayi yok"}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-white px-3 py-2">
-                    <div className="font-medium">Bağlı Personeller</div>
-                    <div className="text-zinc-500 mt-1">
-                      {summary.assignedPersonnel.map((person) => person.name).join(", ") || "Personel yok"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!managerSummaries.length && <div className="text-sm text-zinc-500">Müdür bulunamadı.</div>}
-          </div>
-        </div>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
           <div className="font-medium">Dönemsel Raporlar</div>
@@ -349,6 +297,58 @@ export default function AnalysisPage() {
           {!branchSummaries.length && <div className="text-sm text-zinc-500">Bayi bulunamadı.</div>}
         </div>
       </div>
+
+      {user?.role === "ADMİN" && (
+        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
+          <div>
+            <div className="font-medium">Müdür Analizleri</div>
+            <p className="text-xs text-zinc-500">
+              Müdürlerin kendi satışları, yönettikleri bayiler ve personellerin performans özeti.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {managerSummaries.map((summary) => (
+              <div key={summary.manager.id} className="rounded-xl border bg-zinc-50 p-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="font-medium">{summary.manager.name}</div>
+                    <div className="text-xs text-zinc-500">@{summary.manager.username}</div>
+                    {summary.manager.branchId && (
+                      <div className="text-[11px] text-zinc-400">{branchLabel(branches, summary.manager.branchId)}</div>
+                    )}
+                  </div>
+                  <div className="text-xs text-zinc-500 text-right">
+                    Kendi satış: <span className="font-medium text-zinc-900">{summary.ownSales.length}</span>
+                    <div>Yönettiği satış: {summary.managedSales.length}</div>
+                  </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3 text-xs">
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Kendi Performansı</div>
+                    <div className="text-zinc-500 mt-1">
+                      Ciro: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.totalRevenue, 0))}
+                    </div>
+                    <div className="text-zinc-500">Kâr: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.netProfit, 0))}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Bağlı Bayiler</div>
+                    <div className="text-zinc-500 mt-1">
+                      {summary.managedBranches.map((branch) => branch.name).join(", ") || "Bayi yok"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Bağlı Personeller</div>
+                    <div className="text-zinc-500 mt-1">
+                      {summary.assignedPersonnel.map((person) => person.name).join(", ") || "Personel yok"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!managerSummaries.length && <div className="text-sm text-zinc-500">Müdür bulunamadı.</div>}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
         <div>

@@ -42,10 +42,7 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
 
     final branch = branches.where((b) => b.id == branchId).toList();
     final branchLabel = branch.isEmpty ? 'Bilinmeyen bayi' : branch.first.name;
-    final personnel = auth
-        .listUsers()
-        .where((u) => u.role == 'staff' && u.managerId == auth.currentUserId)
-        .toList();
+    final personnel = auth.listUsers().where((u) => u.role == 'staff' && u.branchId == branchId).toList();
 
     final sales = salesRepo.listRecent(limit: 300).where((s) => s.branchId == branchId).toList();
     final ownSales = sales.where((s) => s.createdBy == auth.currentUserId).toList();

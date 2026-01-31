@@ -45,9 +45,8 @@ export default function ManagerPage() {
   );
 
   const personnel = useMemo(
-    () =>
-      users.filter((person) => person.role === "PERSONEL" && person.managerId === user?.id),
-    [users, user?.id]
+    () => users.filter((person) => person.role === "PERSONEL" && person.branchId === branchId),
+    [users, branchId]
   );
 
   const ownSales = useMemo(

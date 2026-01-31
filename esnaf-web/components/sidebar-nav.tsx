@@ -26,10 +26,6 @@ export default function SidebarNav() {
   if (user?.role === "MÜDÜR") {
     items.push({ href: "/manager", label: "Müdür" });
   }
-  if (user?.role === "PERSONEL") {
-    items.push({ href: "/personnel", label: "Personel" });
-  }
-
   return (
     <aside className="w-72 hidden md:flex min-h-screen flex-col border-r border-slate-200/70 bg-white/80 backdrop-blur-xl">
       <div className="px-5 py-5 border-b border-slate-200/70">

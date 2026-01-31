@@ -78,11 +78,6 @@ class HomeScreen extends ConsumerWidget {
                         value: '${todaySales.length}',
                         icon: Icons.shopping_bag_outlined,
                       ),
-                      _StatCard(
-                        title: 'Toplam Satış Tutarı',
-                        value: _fmtMoney(todayRevenue),
-                        icon: Icons.payments_outlined,
-                      ),
                     ]
                   : [
                       _StatCard(title: 'Ciro (Bugün)', value: _fmtMoney(todayRevenue), icon: Icons.payments_outlined),
@@ -120,14 +115,15 @@ class HomeScreen extends ConsumerWidget {
                                   Text('Toplam satış: ${entry.sales.length}',
                                       style: const TextStyle(color: Colors.black54, fontSize: 12)),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Toplam satış tutarı', style: TextStyle(fontSize: 12)),
-                                      Text(_fmtMoney(entry.revenue),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
+                                  if (!isStaff)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Toplam satış tutarı', style: TextStyle(fontSize: 12)),
+                                        Text(_fmtMoney(entry.revenue),
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
                                   if (!isStaff)
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

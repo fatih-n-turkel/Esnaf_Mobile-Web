@@ -53,14 +53,10 @@ export default function DashboardPage() {
       </div>
 
       {isPersonnel ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm">
             <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Bugün Satış</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{todays.length}</div>
-          </div>
-          <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Toplam Satış Tutarı</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-900">{fmtTRY(revenue)}</div>
           </div>
         </div>
       ) : (
@@ -77,12 +73,12 @@ export default function DashboardPage() {
             >
               <div className="font-medium text-slate-900">{summary.branch.name}</div>
               <div className="text-xs text-slate-500">Toplam satış: {summary.branchSales.length}</div>
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                <span>Toplam satış tutarı</span>
-                <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
-              </div>
               {!isPersonnel && (
                 <>
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                    <span>Toplam satış tutarı</span>
+                    <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
+                  </div>
                   <div className="flex items-center justify-between text-xs text-zinc-600">
                     <span>Net Kâr</span>
                     <span className="font-medium text-emerald-600">{fmtTRY(summary.branchProfit)}</span>

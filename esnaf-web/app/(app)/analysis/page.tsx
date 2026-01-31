@@ -171,61 +171,111 @@ export default function AnalysisPage() {
     downloadBlob(csvContent, `analiz-raporu-${Date.now()}.csv`, "text/csv;charset=utf-8");
   };
 
+  const escapeHtml = (value: string) =>
+    value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
   const handleExportPdf = () => {
-    const doc = new jsPDF();
-    let y = 14;
-    const lineHeight = 7;
-    const addLine = (text: string) => {
-      if (y > 280) {
-        doc.addPage();
-        y = 14;
-      }
-      doc.text(text, 14, y);
-      y += lineHeight;
+    const reportWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!reportWindow) return;
+
+    const periodRows = periodSummaries
+      .map(
+        ({ period, summary }) =>
+          `<tr><td>${escapeHtml(period.label)}</td><td>${escapeHtml(fmtTRY(summary.revenue))}</td><td>${
+            summary.soldQty
+          }</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(fmtTRY(summary.loss))}</td></tr>`
+      )
+      .join("");
+
+    const branchRows = branchSummaries
+      .map(({ branch, branchStock, analytics }) => {
+        const analyticsRows = analytics
+          .map(
+            ({ period, summary }) =>
+              `<tr><td>${escapeHtml(branch.name)}</td><td>${escapeHtml(period.label)}</td><td>${escapeHtml(
+                fmtTRY(summary.revenue)
+              )}</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(
+                fmtTRY(summary.loss)
+              )}</td><td>${summary.soldQty}</td><td>${branchStock}</td></tr>`
+          )
+          .join("");
+        return analyticsRows;
+      })
+      .join("");
+
+    const personnelRows = personnelSummaries
+      .map(
+        ({ person, totalRevenue, totalProfit, lastSale }) =>
+          `<tr><td>${escapeHtml(person.name)}</td><td>@${escapeHtml(person.username)}</td><td>${escapeHtml(
+            fmtTRY(totalRevenue)
+          )}</td><td>${escapeHtml(fmtTRY(totalProfit))}</td><td>${
+            lastSale ? escapeHtml(new Date(lastSale).toLocaleDateString("tr-TR")) : "-"
+          }</td></tr>`
+      )
+      .join("");
+
+    reportWindow.document.write(`
+      <!doctype html>
+      <html lang="tr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Analiz Raporu</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+            h1, h2 { margin-bottom: 8px; }
+            p { margin-top: 0; color: #6b7280; }
+            table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 12px; }
+            th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Analiz Raporu</h1>
+          <p>Tarih: ${escapeHtml(new Date().toLocaleString("tr-TR"))}</p>
+
+          <h2>Dönemsel Özet</h2>
+          <table>
+            <thead>
+              <tr><th>Dönem</th><th>Ciro</th><th>Satış</th><th>Kâr</th><th>Zarar</th></tr>
+            </thead>
+            <tbody>${periodRows}</tbody>
+          </table>
+
+          <h2>Finansal Özet</h2>
+          <table>
+            <tbody>
+              <tr><th>Toplam Satış</th><td>${escapeHtml(fmtTRY(financialSummary.revenue))}</td></tr>
+              <tr><th>Toplam Maliyet</th><td>${escapeHtml(fmtTRY(financialSummary.cost))}</td></tr>
+              <tr><th>KDV</th><td>${escapeHtml(fmtTRY(financialSummary.vat))}</td></tr>
+              <tr><th>POS Gideri</th><td>${escapeHtml(fmtTRY(financialSummary.posFee))}</td></tr>
+              <tr><th>Kâr</th><td>${escapeHtml(fmtTRY(financialSummary.profit))}</td></tr>
+              <tr><th>Zarar</th><td>${escapeHtml(fmtTRY(financialSummary.loss))}</td></tr>
+            </tbody>
+          </table>
+
+          <h2>Bayi Analizleri</h2>
+          <table>
+            <thead>
+              <tr><th>Bayi</th><th>Dönem</th><th>Ciro</th><th>Kâr</th><th>Zarar</th><th>Satış</th><th>Stok</th></tr>
+            </thead>
+            <tbody>${branchRows}</tbody>
+          </table>
+
+          <h2>Personel Performansı</h2>
+          <table>
+            <thead>
+              <tr><th>Personel</th><th>Kullanıcı Adı</th><th>Ciro</th><th>Kâr</th><th>Son Satış</th></tr>
+            </thead>
+            <tbody>${personnelRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.onload = () => {
+      reportWindow.print();
     };
-
-    addLine("Analiz Raporu");
-    addLine(`Tarih: ${new Date().toLocaleString("tr-TR")}`);
-    y += 4;
-    addLine("Dönemsel Özet");
-    periodSummaries.forEach(({ period, summary }) => {
-      addLine(
-        `${period.label} | Ciro: ${fmtTRY(summary.revenue)} | Satış: ${summary.soldQty} | Kâr: ${fmtTRY(
-          summary.profit
-        )} | Zarar: ${fmtTRY(summary.loss)}`
-      );
-    });
-    y += 4;
-    addLine("Finansal Özet");
-    addLine(`Toplam Satış: ${fmtTRY(financialSummary.revenue)}`);
-    addLine(`Toplam Maliyet: ${fmtTRY(financialSummary.cost)}`);
-    addLine(`KDV: ${fmtTRY(financialSummary.vat)}`);
-    addLine(`POS Gideri: ${fmtTRY(financialSummary.posFee)}`);
-    addLine(`Kâr: ${fmtTRY(financialSummary.profit)}`);
-    addLine(`Zarar: ${fmtTRY(financialSummary.loss)}`);
-    y += 4;
-    addLine("Bayi Analizleri");
-    branchSummaries.forEach(({ branch, branchStock, analytics }) => {
-      addLine(`${branch.name} (Stok: ${branchStock})`);
-      analytics.forEach(({ period, summary }) => {
-        addLine(
-          `  ${period.label} | Ciro: ${fmtTRY(summary.revenue)} | Kâr: ${fmtTRY(summary.profit)} | Zarar: ${fmtTRY(
-            summary.loss
-          )} | Satış: ${summary.soldQty}`
-        );
-      });
-    });
-    y += 4;
-    addLine("Personel Performansı");
-    personnelSummaries.forEach(({ person, totalRevenue, totalProfit, lastSale }) => {
-      addLine(
-        `${person.name} (@${person.username}) | Ciro: ${fmtTRY(totalRevenue)} | Kâr: ${fmtTRY(totalProfit)} | Son Satış: ${
-          lastSale ? new Date(lastSale).toLocaleDateString("tr-TR") : "-"
-        }`
-      );
-    });
-
-    doc.save(`analiz-raporu-${Date.now()}.pdf`);
   };
 
   if (!canSeePersonnel) {

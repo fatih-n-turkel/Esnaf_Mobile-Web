@@ -122,7 +122,7 @@ export default function AdminPage() {
                 password: "1234",
                 name: form.name.trim(),
                 role: form.role,
-                landingPath: form.role === "ADMİN" ? "/admin" : form.role === "MÜDÜR" ? "/manager" : "/sales/quick",
+                landingPath: form.role === "PERSONEL" ? "/sales/quick" : "/dashboard",
                 branchId: form.role === "ADMİN" ? null : form.branchId,
                 managerId: form.role === "PERSONEL" ? form.managerId || null : null,
               };
@@ -161,7 +161,7 @@ export default function AdminPage() {
                         ? {
                             ...u,
                             role: nextRole,
-                            landingPath: nextRole === "ADMİN" ? "/admin" : nextRole === "MÜDÜR" ? "/manager" : "/sales/quick",
+                            landingPath: nextRole === "PERSONEL" ? "/sales/quick" : "/dashboard",
                             branchId: nextRole === "ADMİN" ? null : u.branchId ?? branches[0]?.id ?? null,
                             managerId: nextRole === "PERSONEL" ? u.managerId ?? null : null,
                           }

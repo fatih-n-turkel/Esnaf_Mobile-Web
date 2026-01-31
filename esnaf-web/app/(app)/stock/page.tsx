@@ -254,39 +254,54 @@ export default function StockPage() {
             )}
             <div className="grid gap-2 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  placeholder="Stok"
-                  value={editForm.stockOnHand}
-                  onChange={(event) => setEditForm({ ...editForm, stockOnHand: event.target.value })}
-                />
-                <input
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  placeholder="Kritik stok"
-                  value={editForm.criticalStockLevel}
-                  onChange={(event) => setEditForm({ ...editForm, criticalStockLevel: event.target.value })}
-                />
+                <div className="grid gap-1">
+                  <label className="text-xs text-zinc-500">Stok</label>
+                  <input
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Stok"
+                    value={editForm.stockOnHand}
+                    onChange={(event) => setEditForm({ ...editForm, stockOnHand: event.target.value })}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-xs text-zinc-500">Kritik stok</label>
+                  <input
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Kritik stok"
+                    value={editForm.criticalStockLevel}
+                    onChange={(event) => setEditForm({ ...editForm, criticalStockLevel: event.target.value })}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1">
+                  <label className="text-xs text-zinc-500">Satış fiyatı</label>
+                  <input
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Satış fiyatı"
+                    value={editForm.salePrice}
+                    onChange={(event) => setEditForm({ ...editForm, salePrice: event.target.value })}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-xs text-zinc-500">Maliyet</label>
+                  <input
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Maliyet"
+                    value={editForm.costPrice}
+                    onChange={(event) => setEditForm({ ...editForm, costPrice: event.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs text-zinc-500">KDV oranı (%)</label>
                 <input
                   className="rounded-lg border px-3 py-2 text-sm"
-                  placeholder="Satış fiyatı"
-                  value={editForm.salePrice}
-                  onChange={(event) => setEditForm({ ...editForm, salePrice: event.target.value })}
-                />
-                <input
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  placeholder="Maliyet"
-                  value={editForm.costPrice}
-                  onChange={(event) => setEditForm({ ...editForm, costPrice: event.target.value })}
+                  placeholder="KDV oranı (%)"
+                  value={editForm.vatRate}
+                  onChange={(event) => setEditForm({ ...editForm, vatRate: event.target.value })}
                 />
               </div>
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="KDV oranı (%)"
-                value={editForm.vatRate}
-                onChange={(event) => setEditForm({ ...editForm, vatRate: event.target.value })}
-              />
             </div>
             <button
               type="button"

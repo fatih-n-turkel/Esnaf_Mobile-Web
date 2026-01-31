@@ -1,7 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 export default function PersonnelPage() {
-  return (
-    <div className="text-sm text-zinc-500">Personel sayfası kaldırıldı.</div>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/sales/quick");
+  }, [router]);
+
+  return null;
 }

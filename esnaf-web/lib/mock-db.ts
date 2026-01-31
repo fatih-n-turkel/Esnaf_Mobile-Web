@@ -141,7 +141,7 @@ function buildSeedDatabase(): DatabaseFile {
       password: "fatih",
       name: "Fatih",
       role: "ADMİN",
-      landingPath: "/admin",
+      landingPath: "/dashboard",
       branchId: null,
     },
     {
@@ -150,7 +150,7 @@ function buildSeedDatabase(): DatabaseFile {
       password: "mehmet",
       name: "Mehmet",
       role: "MÜDÜR",
-      landingPath: "/manager",
+      landingPath: "/dashboard",
       branchId: branchMainId,
     },
     {

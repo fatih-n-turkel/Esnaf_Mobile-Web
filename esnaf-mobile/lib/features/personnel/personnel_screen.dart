@@ -19,7 +19,6 @@ class PersonnelScreen extends ConsumerWidget {
 
     final sales = salesRepo.listRecent(limit: 200).where((s) => s.createdBy == auth.currentUserId).toList();
     final revenue = sales.fold<double>(0, (sum, s) => sum + s.totalGross);
-    final profit = sales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -43,8 +42,7 @@ class PersonnelScreen extends ConsumerWidget {
                     runSpacing: 12,
                     children: [
                       _StatCard(title: 'Satış Adedi', value: '${sales.length}', icon: Icons.receipt_long),
-                      _StatCard(title: 'Ciro', value: _fmtMoney(revenue), icon: Icons.payments_outlined),
-                      _StatCard(title: 'Kâr', value: _fmtMoney(profit), icon: Icons.trending_up),
+                      _StatCard(title: 'Toplam Satış Tutarı', value: _fmtMoney(revenue), icon: Icons.payments_outlined),
                     ],
                   ),
                 ],

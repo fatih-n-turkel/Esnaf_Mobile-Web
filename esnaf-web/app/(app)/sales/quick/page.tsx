@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ProductGrid from "@/components/sales/product-grid";
 import CartPanel from "@/components/sales/cart-panel";
@@ -25,6 +25,12 @@ export default function QuickSalesPage() {
   const [scanValue, setScanValue] = useState("");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanHistory, setScanHistory] = useState<Array<{ code: string; name: string; at: string }>>([]);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<"idle" | "starting" | "active" | "unsupported">("idle");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const lastCameraScanRef = useRef<{ code: string; at: number } | null>(null);
 
   const categories = useMemo(() => {
     const unique = new Set(
@@ -81,22 +87,109 @@ export default function QuickSalesPage() {
     alert("Satış tamamlandı ✅");
   }
 
+  const handleScannedCode = useCallback(
+    (raw: string, source: "manual" | "camera") => {
+      const code = raw.trim();
+      if (!code) return;
+      if (source === "camera") {
+        const last = lastCameraScanRef.current;
+        if (last && last.code === code && Date.now() - last.at < 1500) {
+          return;
+        }
+        lastCameraScanRef.current = { code, at: Date.now() };
+      }
+      const found = products.find((p) => p.qrCode?.toLowerCase() === code.toLowerCase());
+      if (!found) {
+        setScanMessage("QR eşleşmedi. Ürün bulunamadı.");
+        return;
+      }
+      cart.addProduct(found);
+      setScanHistory((prev) =>
+        [{ code, name: found.name, at: new Date().toLocaleTimeString("tr-TR") }, ...prev].slice(0, 6)
+      );
+      setScanMessage(`${found.name} sepete eklendi.`);
+    },
+    [cart, products],
+  );
+
   function handleScanSubmit() {
     const code = scanValue.trim();
     if (!code) return;
-    const found = products.find((p) => p.qrCode?.toLowerCase() === code.toLowerCase());
-    if (!found) {
-      setScanMessage("QR eşleşmedi. Ürün bulunamadı.");
-      setScanValue("");
-      return;
-    }
-    cart.addProduct(found);
-    setScanHistory((prev) =>
-      [{ code, name: found.name, at: new Date().toLocaleTimeString("tr-TR") }, ...prev].slice(0, 6)
-    );
-    setScanMessage(`${found.name} sepete eklendi.`);
+    handleScannedCode(code, "manual");
     setScanValue("");
   }
+
+  useEffect(() => {
+    const supports = typeof window !== "undefined" && "BarcodeDetector" in window && !!navigator?.mediaDevices;
+    if (mode !== "QR") {
+      setCameraStatus("idle");
+      setCameraError(null);
+      lastCameraScanRef.current = null;
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      return;
+    }
+
+    if (!supports) {
+      setCameraStatus("unsupported");
+      setCameraError("Tarayıcı kamera taramasını desteklemiyor.");
+      return;
+    }
+
+    let active = true;
+    lastCameraScanRef.current = null;
+    const startCamera = async () => {
+      setCameraStatus("starting");
+      setCameraError(null);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (!active) return;
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        setCameraStatus("active");
+        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+        const tick = async () => {
+          if (!active) return;
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            try {
+              const barcodes = await detector.detect(videoRef.current);
+              if (barcodes?.length) {
+                const value = barcodes[0]?.rawValue ?? barcodes[0]?.displayValue ?? "";
+                if (value) {
+                  setScanValue(value);
+                  handleScannedCode(value, "camera");
+                }
+              }
+            } catch (err) {
+              setCameraError("QR taraması sırasında hata oluştu.");
+            }
+          }
+          frameRef.current = requestAnimationFrame(tick);
+        };
+        frameRef.current = requestAnimationFrame(tick);
+      } catch (err) {
+        setCameraStatus("unsupported");
+        setCameraError("Kamera izni verilemedi.");
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      active = false;
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [handleScannedCode, mode]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
@@ -164,6 +257,21 @@ export default function QuickSalesPage() {
         ) : (
           <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
             <div className="font-medium">QR Okutma</div>
+            <div className="rounded-xl border bg-zinc-50 p-3 space-y-2">
+              <div className="text-xs font-medium text-zinc-700">Kamera ile okutma</div>
+              {cameraStatus === "unsupported" ? (
+                <div className="text-xs text-zinc-500">Tarayıcı kamera taramasını desteklemiyor.</div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  className="w-full rounded-lg border bg-black/90 aspect-video"
+                  muted
+                  playsInline
+                />
+              )}
+              {cameraError && <div className="text-xs text-rose-600">{cameraError}</div>}
+              {cameraStatus === "starting" && <div className="text-xs text-zinc-500">Kamera hazırlanıyor...</div>}
+            </div>
             <input
               className="w-full rounded-lg border px-3 py-2 text-sm"
               placeholder="QR okuyucu ile okutun veya kodu yazıp Enter'a basın"

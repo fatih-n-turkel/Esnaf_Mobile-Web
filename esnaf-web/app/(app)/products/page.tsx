@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Category, Product, Settings } from "@/lib/types";
-import { v4 as uuidv4 } from "uuid";
 
 async function fetchProducts() {
   const r = await fetch("/api/products", { cache: "no-store" });
@@ -114,7 +113,7 @@ export default function ProductsPage() {
       const r = await fetch(`/api/products/${product.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qrCode: uuidv4() }),
+        body: JSON.stringify({}),
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
@@ -128,6 +127,49 @@ export default function ProductsPage() {
     }
     setQrProduct(next);
     setQrBusy(false);
+  }
+
+  const qrValue = qrProduct?.qrCode?.trim();
+  const qrImageUrl = qrValue
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrValue)}&size=240`
+    : null;
+  const qrSvgUrl = qrValue
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrValue)}&size=240&format=svg`
+    : null;
+
+  function downloadQrPng() {
+    if (!qrImageUrl || !qrProduct) return;
+    const link = document.createElement("a");
+    link.href = qrImageUrl;
+    link.download = `${qrProduct.name}-qr.png`;
+    link.click();
+  }
+
+  function downloadQrSvg() {
+    if (!qrSvgUrl || !qrProduct) return;
+    const link = document.createElement("a");
+    link.href = qrSvgUrl;
+    link.download = `${qrProduct.name}-qr.svg`;
+    link.click();
+  }
+
+  function printQr() {
+    if (!qrImageUrl || !qrProduct) return;
+    const printWindow = window.open("", "_blank", "width=480,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head><title>${qrProduct.name} QR</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 24px;">
+          <h2>${qrProduct.name}</h2>
+          <p>${qrProduct.qrCode}</p>
+          <img src="${qrImageUrl}" style="width: 240px; height: 240px;" />
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   }
 
   function openEdit(product: Product) {
@@ -343,16 +385,38 @@ export default function ProductsPage() {
               <div className="font-medium mb-1">{qrProduct.name}</div>
               <div className="text-xs text-zinc-500">QR Kodu: {qrProduct.qrCode}</div>
             </div>
-            <div className="grid gap-2 text-sm">
-              <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
-                QR Görüntüle / Paylaş
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
-                  PDF (A4) İndir
+            <div className="grid gap-3 text-sm">
+              <div className="flex flex-col items-center gap-2 rounded-xl border bg-white p-3">
+                {qrImageUrl ? (
+                  <img src={qrImageUrl} alt={`${qrProduct.name} QR`} className="h-48 w-48" />
+                ) : (
+                  <div className="text-xs text-zinc-500">QR hazırlanıyor...</div>
+                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={printQr}
+                  className="rounded-lg border px-3 py-2 hover:bg-zinc-50"
+                  disabled={!qrImageUrl}
+                >
+                  QR Yazdır
                 </button>
-                <button type="button" className="rounded-lg border px-3 py-2 hover:bg-zinc-50">
-                  JPG İndir
+                <button
+                  type="button"
+                  onClick={downloadQrPng}
+                  className="rounded-lg border px-3 py-2 hover:bg-zinc-50"
+                  disabled={!qrImageUrl}
+                >
+                  PNG İndir
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadQrSvg}
+                  className="rounded-lg border px-3 py-2 hover:bg-zinc-50"
+                  disabled={!qrSvgUrl}
+                >
+                  SVG İndir
                 </button>
               </div>
               <div className="text-xs text-zinc-500">

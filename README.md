@@ -102,3 +102,5 @@ Uygulama modüler bir mimariyle geliştirilmektedir. İlk sürümde temel satı�
 
 ## 📄 Lisans
 Bu proje aktif geliştirme aşamasındadır. Lisans ve kullanım koşulları ilerleyen aşamalarda belirlenecektir.
+
+Üçüncü taraf bileşenleri ve ilgili lisans referansları için `THIRD_PARTY_NOTICES.md` dosyasına bakınız.

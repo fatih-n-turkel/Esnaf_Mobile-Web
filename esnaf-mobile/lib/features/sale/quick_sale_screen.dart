@@ -6,6 +6,7 @@ import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
 import '../../data/repositories/auth_repo.dart';
 import '../../data/repositories/settings_repo.dart';
+import '../../data/repositories/branches_repo.dart';
 import '../../data/models/models.dart';
 import 'cart_state.dart';
 import 'widgets/product_grid.dart';
@@ -13,6 +14,7 @@ import 'widgets/cart_panel.dart';
 
 final _searchProvider = StateProvider<String>((ref) => '');
 final _categoryProvider = StateProvider<String?>((ref) => null);
+final _branchProvider = StateProvider<String>((ref) => '');
 
 final cartProvider2 = StateNotifierProvider<CartNotifier, CartState>((ref) {
   final s = ref.watch(settingsProvider);
@@ -28,12 +30,22 @@ class QuickSaleScreen extends ConsumerWidget {
 
     final query = ref.watch(_searchProvider);
     final cat = ref.watch(_categoryProvider);
+    final selectedBranchId = ref.watch(_branchProvider);
 
     final prodRepo = ref.watch(productsRepoProvider);
     final auth = ref.watch(authRepoProvider);
-    final branchId = auth.getBranchId();
+    final role = auth.getRole();
+    final branchId = role == 'admin' ? selectedBranchId : auth.getBranchId();
+    ref.watch(branchesSeedProvider);
+    final branches = ref.watch(branchesRepoProvider).list();
     final products = prodRepo.list(query: query, category: cat, branchId: branchId);
     final categories = prodRepo.categories();
+
+    if (role == 'admin' && selectedBranchId.isEmpty && branches.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(_branchProvider.notifier).state = branches.first.id;
+      });
+    }
 
     final cart = ref.watch(cartProvider2);
     final cartN = ref.read(cartProvider2.notifier);
@@ -65,6 +77,17 @@ class QuickSaleScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (role == 'admin') ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: branchId.isNotEmpty
+                      ? branchId
+                      : (branches.isNotEmpty ? branches.first.id : ''),
+                  decoration: const InputDecoration(labelText: 'Bayi (sadece admin)', border: OutlineInputBorder()),
+                  items: branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                  onChanged: (value) => ref.read(_branchProvider.notifier).state = value ?? '',
+                ),
+              ],
               const SizedBox(height: 8),
               SizedBox(
                 height: 44,
@@ -155,7 +178,8 @@ class QuickSaleScreen extends ConsumerWidget {
 
     final auth = ref.read(authRepoProvider);
     final createdBy = auth.currentUserId ?? 'admin';
-    final branchId = auth.getBranchId();
+    final role = auth.getRole();
+    final branchId = role == 'admin' ? ref.read(_branchProvider) : auth.getBranchId();
 
     final items = cart.lines.map((l) {
       return SaleItem(

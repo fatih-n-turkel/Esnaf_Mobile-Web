@@ -17,6 +17,7 @@ class AnalysisScreen extends ConsumerStatefulWidget {
 class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   String _query = '';
   String _selectedBranchId = '';
+  String _branchSearch = '';
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +40,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       return sale.branchId == activeBranchId;
     }).toList();
     final totalStock = products.fold<double>(0, (sum, p) => sum + p.stockQty);
+    final financial = _financialSummary(sales);
 
     final personnel = auth
         .listUsers()
@@ -47,6 +49,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final filteredPersonnel = personnel
         .where((person) => _query.isEmpty || person.name.toLowerCase().contains(_query) || person.username.toLowerCase().contains(_query))
         .toList();
+
+    final managers = auth.listUsers().where((u) => u.role == 'manager').toList();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -106,7 +110,19 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 children: [
                   const Text('Bayi Analizleri', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  ...branches.where((b) => activeBranchId.isEmpty || b.id == activeBranchId).map((branch) {
+                  TextField(
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      labelText: 'Bayi ara',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(() => _branchSearch = value.trim().toLowerCase()),
+                  ),
+                  const SizedBox(height: 12),
+                  ...branches
+                      .where((b) => activeBranchId.isEmpty || b.id == activeBranchId)
+                      .where((b) => _branchSearch.isEmpty || b.name.toLowerCase().contains(_branchSearch))
+                      .map((branch) {
                     final branchSales = salesRepo.listRecent(limit: 500).where((sale) => sale.branchId == branch.id).toList();
                     final branchProducts = ref.watch(productsRepoProvider).list(branchId: branch.id);
                     final branchStock = branchProducts.fold<double>(0, (sum, p) => sum + p.stockQty);
@@ -122,6 +138,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                               Text(branch.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                               const SizedBox(height: 4),
                               Text('Toplam satış: ${branchSales.length} • Stok: ${branchStock.toStringAsFixed(0)}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                              const SizedBox(height: 4),
+                              Text('Ciro: ${_fmtMoney(branchSales.fold<double>(0, (sum, s) => sum + s.totalGross))} • '
+                                  'Kâr: ${_fmtMoney(branchSales.fold<double>(0, (sum, s) => sum + s.totalNetProfit))}',
                                   style: const TextStyle(fontSize: 12, color: Colors.black54)),
                               const SizedBox(height: 8),
                               Wrap(
@@ -272,6 +292,58 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (role == 'admin')
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Müdür Analizleri', style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    ...managers.map((manager) {
+                      final managerSales = salesRepo.listRecent(limit: 500).where((s) => s.createdBy == manager.username).toList();
+                      final personnelForManager = auth.listUsers().where((u) => u.managerId == manager.username).toList();
+                      final managedBranchIds = [
+                        if (manager.branchId.isNotEmpty) manager.branchId,
+                        ...personnelForManager.where((u) => u.branchId.isNotEmpty).map((u) => u.branchId),
+                      ].toSet().toList();
+                      final branchNames = managedBranchIds.map((id) => _branchName(branches, id)).where((name) => name.isNotEmpty).toList();
+                      final managedSales = salesRepo
+                          .listRecent(limit: 500)
+                          .where((s) => managedBranchIds.contains(s.branchId))
+                          .toList();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Card(
+                          color: Colors.grey.shade50,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(manager.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 4),
+                                Text('Kendi satış: ${managerSales.length} • Yönettiği satış: ${managedSales.length}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                const SizedBox(height: 4),
+                                Text('Bağlı bayiler: ${branchNames.join(', ')}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                Text('Bağlı personel: ${personnelForManager.map((p) => p.name).join(', ')}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    if (managers.isEmpty)
+                      const Text('Müdür bulunamadı.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -282,8 +354,6 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   SizedBox(height: 8),
                   _Bullet(text: 'Günlük / haftalık / aylık / yıllık / çeyrek dönem raporları'),
                   _Bullet(text: 'Ciro ve net kâr grafikleri'),
-                  _Bullet(text: 'En çok satan ürünler'),
-                  _Bullet(text: 'En çok kâr bırakan ürünler'),
                   _Bullet(text: 'Ödeme tipi dağılımı'),
                   _Bullet(text: 'Personel bazlı satış performansı'),
                 ],
@@ -296,13 +366,39 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('Maliyet & Gider Analizi', style: TextStyle(fontWeight: FontWeight.w700)),
-                  SizedBox(height: 8),
-                  _Bullet(text: 'Ürün bazlı maliyet takibi'),
-                  _Bullet(text: 'Ödeme türüne göre giderler: Nakit, Kart (POS komisyonu / sabit gider)'),
-                  _Bullet(text: 'Satış anında ve raporlarda: Satış geliri, ürün maliyeti, POS giderleri'),
-                  _Bullet(text: 'Net kâr / zarar kırılımı'),
+                children: [
+                  const Text('Maliyet & Gider Analizi', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  _Row(label: 'Toplam maliyet', value: _fmtMoney(financial.cost)),
+                  _Row(label: 'POS gideri', value: _fmtMoney(financial.posFee)),
+                  _Row(label: 'KDV', value: _fmtMoney(financial.vat)),
+                  _Row(label: 'Net kâr', value: _fmtMoney(financial.profit), valueColor: Colors.green),
+                  _Row(label: 'Zarar', value: _fmtMoney(financial.loss), valueColor: Colors.red),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Finansal Rapor', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _StatCard(title: 'Toplam Satış', value: _fmtMoney(financial.revenue), icon: Icons.payments_outlined),
+                      _StatCard(title: 'Toplam Maliyet', value: _fmtMoney(financial.cost), icon: Icons.inventory_2),
+                      _StatCard(title: 'KDV', value: _fmtMoney(financial.vat), icon: Icons.receipt_long),
+                      _StatCard(title: 'POS Gideri', value: _fmtMoney(financial.posFee), icon: Icons.credit_card),
+                      _StatCard(title: 'Kâr', value: _fmtMoney(financial.profit), icon: Icons.trending_up),
+                      _StatCard(title: 'Zarar', value: _fmtMoney(financial.loss), icon: Icons.trending_down),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -336,6 +432,48 @@ class _Summary {
   final double soldQty;
 }
 
+class _FinancialSummary {
+  const _FinancialSummary({
+    required this.revenue,
+    required this.cost,
+    required this.vat,
+    required this.posFee,
+    required this.profit,
+    required this.loss,
+  });
+  final double revenue;
+  final double cost;
+  final double vat;
+  final double posFee;
+  final double profit;
+  final double loss;
+}
+
+_FinancialSummary _financialSummary(List<Sale> sales) {
+  double revenue = 0;
+  double cost = 0;
+  double vat = 0;
+  double posFee = 0;
+  double profit = 0;
+  double loss = 0;
+  for (final sale in sales) {
+    revenue += sale.totalGross;
+    vat += sale.totalVat;
+    final fee = sale.paymentType == PaymentType.card
+        ? (sale.posFeeType == PosFeeType.percent ? sale.totalGross * (sale.posFeeValue / 100.0) : sale.posFeeValue)
+        : 0.0;
+    posFee += fee;
+    final approxCost = sale.totalGross - sale.totalNetProfit - fee;
+    cost += approxCost;
+    if (sale.totalNetProfit >= 0) {
+      profit += sale.totalNetProfit;
+    } else {
+      loss += sale.totalNetProfit.abs();
+    }
+  }
+  return _FinancialSummary(revenue: revenue, cost: cost, vat: vat, posFee: posFee, profit: profit, loss: loss);
+}
+
 _Summary _calcSummary(SalesRepo repo, List<Sale> sales, AnalyticsPeriod period) {
   final now = DateTime.now();
   final startDay = DateTime(now.year, now.month, now.day).subtract(Duration(days: period.days - 1));
@@ -359,6 +497,12 @@ _Summary _calcSummary(SalesRepo repo, List<Sale> sales, AnalyticsPeriod period) 
 }
 
 String _fmtMoney(double value) => '₺${value.toStringAsFixed(2)}';
+
+String _branchName(List<Branch> branches, String branchId) {
+  final branch = branches.where((b) => b.id == branchId).toList();
+  if (branch.isEmpty) return '';
+  return branch.first.name;
+}
 
 class _Row extends StatelessWidget {
   const _Row({required this.label, required this.value, this.valueColor});
@@ -395,6 +539,38 @@ class _Bullet extends StatelessWidget {
           const Text('• ', style: TextStyle(fontSize: 12)),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54))),
         ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.title, required this.value, required this.icon});
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 160,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 12)),
+                  Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              )
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class NotificationsScreen extends StatefulWidget {
+import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/notifications_repo.dart';
+import '../../data/repositories/branches_repo.dart';
+import '../../data/models/models.dart';
+
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final List<_ToggleOption> _active = [
     _ToggleOption('Kritik stok uyarıları', true),
     _ToggleOption('Gün sonu satış ve kâr özeti', true),
@@ -22,6 +28,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(branchesSeedProvider);
+    final auth = ref.watch(authRepoProvider);
+    final notifications = ref.watch(notificationsRepoProvider);
+    final branches = ref.watch(branchesRepoProvider).list();
+    final scopeNotes = notifications.list(
+      branchId: auth.getBranchId(),
+      userId: auth.currentUserId,
+      role: auth.getRole(),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifications.markAllRead(
+        branchId: auth.getBranchId(),
+        userId: auth.currentUserId,
+        role: auth.getRole(),
+      );
+    });
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: ListView(
@@ -30,6 +54,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           const SizedBox(height: 4),
           const Text('Kritik stok, satış özeti ve ürün performans uyarıları.', style: TextStyle(color: Colors.black54)),
           const SizedBox(height: 16),
+          _SectionCard(
+            title: 'Bildirim Akışı',
+            children: [
+              if (scopeNotes.isEmpty)
+                const Text('Bildirim bulunamadı.', style: TextStyle(color: Colors.black54)),
+              ...scopeNotes.map((note) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(note.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      '${note.message}\n${_scopeLabel(note, branches)} • ${_fmtDate(note.createdAt)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  )),
+            ],
+          ),
+          const SizedBox(height: 12),
           _SectionCard(
             title: 'Aktif Bildirimler',
             children: _active
@@ -97,4 +137,18 @@ class _SectionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _fmtDate(int createdAt) {
+  final dt = DateTime.fromMillisecondsSinceEpoch(createdAt);
+  return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+}
+
+String _scopeLabel(AppNotification note, List<Branch> branches) {
+  if (note.scope == NotificationScope.branch) {
+    final branch = branches.where((b) => b.id == note.branchId).toList();
+    return branch.isEmpty ? 'Bilinmeyen bayi' : branch.first.name;
+  }
+  if (note.scope == NotificationScope.user) return 'Size özel';
+  return 'Genel';
 }

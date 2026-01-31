@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/store/auth";
 import { getDemoUsers, saveDemoUsers } from "@/lib/auth";
-import { Branch, DemoUser } from "@/lib/types";
+import { Branch, DemoUser, Sale } from "@/lib/types";
 import { branchLabel } from "@/lib/branches";
+import { fmtTRY } from "@/lib/money";
+
+async function fetchSales() {
+  const r = await fetch("/api/sales", { cache: "no-store" });
+  return r.json();
+}
 
 export default function ManagerPage() {
   const user = useAuth((state) => state.user);
@@ -12,8 +19,10 @@ export default function ManagerPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [form, setForm] = useState({ name: "", username: "", branchId: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { data: salesData } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
 
   const branchId = user?.branchId ?? "";
+  const sales: Sale[] = salesData?.items ?? [];
 
   useEffect(() => {
     let active = true;
@@ -37,11 +46,19 @@ export default function ManagerPage() {
 
   const personnel = useMemo(
     () =>
-      users.filter(
-        (person) => person.role === "PERSONEL" && person.branchId === branchId
-      ),
-    [users, branchId]
+      users.filter((person) => person.role === "PERSONEL" && person.managerId === user?.id),
+    [users, user?.id]
   );
+
+  const ownSales = useMemo(
+    () => sales.filter((sale) => sale.createdBy.id === user?.id),
+    [sales, user?.id]
+  );
+  const managedSales = useMemo(() => sales.filter((sale) => sale.branchId === branchId), [sales, branchId]);
+  const ownRevenue = ownSales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
+  const ownProfit = ownSales.reduce((sum, sale) => sum + sale.netProfit, 0);
+  const managedRevenue = managedSales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
+  const managedProfit = managedSales.reduce((sum, sale) => sum + sale.netProfit, 0);
 
   if (user?.role !== "MÜDÜR") {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece müdür kullanıcılar içindir.</div>;
@@ -61,6 +78,7 @@ export default function ManagerPage() {
               name: form.name.trim(),
               username: form.username.trim(),
               branchId: targetBranch,
+              managerId: user?.id ?? u.managerId ?? null,
             }
           : u
       );
@@ -73,6 +91,7 @@ export default function ManagerPage() {
         role: "PERSONEL",
         landingPath: "/personnel",
         branchId: targetBranch,
+        managerId: user?.id ?? null,
       };
       next = [created, ...users];
     }
@@ -87,6 +106,27 @@ export default function ManagerPage() {
       <div>
         <h1 className="text-xl font-semibold">Müdür Sayfası</h1>
         <p className="text-sm text-zinc-500">Operasyon özetleri, ekip yönetimi ve satış kontrolleri.</p>
+      </div>
+
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+        <div>
+          <div className="font-medium">Müdür Özeti</div>
+          <p className="text-xs text-zinc-500">Kendi satış performansınız ve bağlı ekip özeti.</p>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="rounded-xl border bg-zinc-50 p-3 text-sm space-y-1">
+            <div className="font-medium">Kendi Satışlarım</div>
+            <div className="text-xs text-zinc-500">Toplam satış: {ownSales.length}</div>
+            <div className="text-xs text-zinc-600">Ciro: {fmtTRY(ownRevenue)}</div>
+            <div className="text-xs text-emerald-600">Kâr: {fmtTRY(ownProfit)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3 text-sm space-y-1">
+            <div className="font-medium">Bağlı Bayi Performansı</div>
+            <div className="text-xs text-zinc-500">{branchLabel(branches, branchId)}</div>
+            <div className="text-xs text-zinc-600">Ciro: {fmtTRY(managedRevenue)}</div>
+            <div className="text-xs text-emerald-600">Kâr: {fmtTRY(managedProfit)}</div>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">

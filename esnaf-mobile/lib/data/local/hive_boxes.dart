@@ -9,6 +9,7 @@ class HiveBoxes {
   static const settings = 'settings';
   static const users = 'users';
   static const branches = 'branches';
+  static const notifications = 'notifications';
 
   static Future<void> openAll() async {
     await Future.wait([
@@ -20,6 +21,7 @@ class HiveBoxes {
       Hive.openBox<Map>(settings),
       Hive.openBox<Map>(users),
       Hive.openBox<Map>(branches),
+      Hive.openBox<Map>(notifications),
     ]);
   }
 

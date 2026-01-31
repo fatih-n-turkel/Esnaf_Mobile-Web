@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
 import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/branches_repo.dart';
+import '../../data/models/models.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -29,6 +31,8 @@ class HomeScreen extends ConsumerWidget {
             .listRecent(limit: 200)
             .where((s) => role == 'admin' || branchId.isEmpty || s.branchId == branchId)
             .toList();
+        ref.watch(branchesSeedProvider);
+        final branches = ref.watch(branchesRepoProvider).list();
         final products = ref.watch(productsRepoProvider).list(branchId: branchId);
         final critical = products.where((p) => p.stockQty <= p.criticalStock).toList();
         final today = DateTime.now();
@@ -38,7 +42,17 @@ class HomeScreen extends ConsumerWidget {
         }).toList();
         final todayRevenue = todaySales.fold<double>(0, (sum, s) => sum + s.totalGross);
         final todayProfit = todaySales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
-        final todayVat = todaySales.fold<double>(0, (sum, s) => sum + s.totalVat);
+        final todayLoss = todaySales.fold<double>(0, (sum, s) => sum + (s.totalNetProfit < 0 ? s.totalNetProfit.abs() : 0));
+
+        final branchSummary = branches
+            .where((b) => role == 'admin' || b.id == branchId)
+            .map((branch) {
+          final branchSales = todaySales.where((s) => s.branchId == branch.id).toList();
+          final revenue = branchSales.fold<double>(0, (sum, s) => sum + s.totalGross);
+          final profit = branchSales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
+          final loss = branchSales.fold<double>(0, (sum, s) => sum + (s.totalNetProfit < 0 ? s.totalNetProfit.abs() : 0));
+          return (branch: branch, sales: branchSales, revenue: revenue, profit: profit, loss: loss);
+        }).toList();
 
         return ListView(
           padding: const EdgeInsets.all(12),
@@ -59,9 +73,66 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 _StatCard(title: 'Ciro (Bugün)', value: _fmtMoney(todayRevenue), icon: Icons.payments_outlined),
                 _StatCard(title: 'Kâr (Bugün)', value: _fmtMoney(todayProfit), icon: Icons.trending_up),
-                _StatCard(title: 'KDV (Bugün)', value: _fmtMoney(todayVat), icon: Icons.receipt),
+                _StatCard(title: 'Zarar (Bugün)', value: _fmtMoney(todayLoss), icon: Icons.trending_down),
                 _StatCard(title: 'Satış (Bugün)', value: '${todaySales.length}', icon: Icons.shopping_bag_outlined),
               ],
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Gün Özeti (Bayi Bazlı)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    if (branchSummary.isEmpty)
+                      const Text('Bayi özeti bulunamadı.', style: TextStyle(color: Colors.black54))
+                    else
+                      ...branchSummary.map((entry) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(entry.branch.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text('Toplam satış: ${entry.sales.length}',
+                                      style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Ciro', style: TextStyle(fontSize: 12)),
+                                      Text(_fmtMoney(entry.revenue),
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Kâr', style: TextStyle(fontSize: 12)),
+                                      Text(_fmtMoney(entry.profit),
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green)),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Zarar', style: TextStyle(fontSize: 12)),
+                                      Text(_fmtMoney(entry.loss),
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Card(
@@ -121,6 +192,10 @@ class HomeScreen extends ConsumerWidget {
                               Text('Satış • $time', style: const TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 4),
                               Text('Satışı yapan: ${s.createdBy}', style: const TextStyle(color: Colors.black54)),
+                              Text(
+                                'Bayi: ${_branchLabel(branches, s.branchId)}',
+                                style: const TextStyle(color: Colors.black54, fontSize: 12),
+                              ),
                               const SizedBox(height: 6),
                               if (items.isEmpty)
                                 const Text('Ürün bilgisi yok')
@@ -201,4 +276,11 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _branchLabel(List<Branch> branches, String branchId) {
+  if (branchId.isEmpty) return 'Bayi yok';
+  final branch = branches.where((b) => b.id == branchId).toList();
+  if (branch.isEmpty) return 'Bilinmeyen bayi';
+  return branch.first.name;
 }

@@ -19,6 +19,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _branchController = TextEditingController();
   String _role = 'staff';
   String _branchId = defaultBranchMainId;
+  String _managerId = '';
 
   @override
   void dispose() {
@@ -36,6 +37,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final branches = branchRepo.list();
     final role = auth.getRole();
     final users = auth.listUsers();
+    final managers = users.where((u) => u.role == 'manager').toList();
 
     if (role != 'admin') {
       return const Center(child: Text('Bu sayfa sadece admin kullanıcılar içindir.'));
@@ -144,6 +146,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     ],
                     onChanged: _role == 'admin' ? null : (value) => setState(() => _branchId = value ?? _branchId),
                   ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _role == 'staff' ? _managerId : '',
+                    decoration: const InputDecoration(labelText: 'Müdür', border: OutlineInputBorder()),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('Müdür seçin')),
+                      ...managers.map((manager) => DropdownMenuItem(value: manager.username, child: Text(manager.name))),
+                    ],
+                    onChanged: _role == 'staff' ? (value) => setState(() => _managerId = value ?? '') : null,
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -158,12 +170,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           role: _role,
                           password: '1234',
                           branchId: _role == 'admin' ? '' : _branchId,
+                          managerId: _role == 'staff' ? _managerId : null,
                         );
                         setState(() {
                           _nameController.clear();
                           _usernameController.clear();
                           _role = 'staff';
                           _branchId = branches.isNotEmpty ? branches.first.id : defaultBranchMainId;
+                          _managerId = '';
                         });
                       },
                       child: const Text('Yetkili Ekle'),
@@ -174,7 +188,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     (user) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(user.name),
-                      subtitle: Text('@${user.username} • ${_branchLabel(branches, user.branchId)}'),
+                      subtitle: Text(
+                        '@${user.username} • ${_branchLabel(branches, user.branchId)}'
+                        '${user.role == 'staff' && user.managerId != null ? ' • Müdür: ${_managerLabel(users, user.managerId!)}' : ''}',
+                      ),
                       trailing: Wrap(
                         spacing: 8,
                         children: [
@@ -193,6 +210,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                             ],
                           ),
                           Chip(label: Text(_roleLabel(user.role))),
+                          if (user.role == 'staff')
+                            DropdownButton<String>(
+                              value: user.managerId ?? '',
+                              onChanged: (value) => auth.upsertUser(
+                                name: user.name,
+                                username: user.username,
+                                role: user.role,
+                                branchId: user.branchId,
+                                managerId: value,
+                              ),
+                              items: [
+                                const DropdownMenuItem(value: '', child: Text('Müdür seçin')),
+                                ...managers.map((manager) =>
+                                    DropdownMenuItem(value: manager.username, child: Text(manager.name))),
+                              ],
+                            ),
                           if (user.username != 'fatih')
                             TextButton(
                               onPressed: () => auth.removeUser(user.username),
@@ -230,4 +263,10 @@ String _branchLabel(List<Branch> branches, String branchId) {
   final branch = branches.where((b) => b.id == branchId).toList();
   if (branch.isEmpty) return 'Bilinmeyen bayi';
   return branch.first.name;
+}
+
+String _managerLabel(List<AuthUser> users, String managerId) {
+  final manager = users.where((u) => u.username == managerId || u.id == managerId).toList();
+  if (manager.isEmpty) return 'Bilinmeyen müdür';
+  return manager.first.name;
 }

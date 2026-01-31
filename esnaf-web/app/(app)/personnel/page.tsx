@@ -22,8 +22,6 @@ export default function PersonnelPage() {
     [sales, user?.id]
   );
   const revenue = ownSales.reduce((sum, sale) => sum + sale.totalRevenue, 0);
-  const profit = ownSales.reduce((sum, sale) => sum + sale.netProfit, 0);
-  const loss = ownSales.reduce((sum, sale) => sum + (sale.netProfit < 0 ? Math.abs(sale.netProfit) : 0), 0);
 
   const periodSummaries = useMemo(
     () =>
@@ -50,21 +48,15 @@ export default function PersonnelPage() {
             <div className="text-lg font-semibold">{ownSales.length}</div>
           </div>
           <div className="rounded-xl border bg-zinc-50 p-3">
-            <div className="text-xs text-zinc-500">Ciro</div>
+            <div className="text-xs text-zinc-500">Toplam satış tutarı</div>
             <div className="text-lg font-semibold">{fmtTRY(revenue)}</div>
-          </div>
-          <div className="rounded-xl border bg-zinc-50 p-3">
-            <div className="text-xs text-zinc-500">Kâr / Zarar</div>
-            <div className="text-lg font-semibold">{fmtTRY(profit - loss)}</div>
           </div>
         </div>
         <div className="grid gap-2 md:grid-cols-5 text-xs">
           {periodSummaries.map(({ period, summary }) => (
             <div key={period.key} className="rounded-lg border bg-white px-3 py-2">
               <div className="font-medium">{period.label}</div>
-              <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-              <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-              <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
+              <div className="text-zinc-500 mt-1">Toplam satış: {fmtTRY(summary.revenue)}</div>
               <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
             </div>
           ))}

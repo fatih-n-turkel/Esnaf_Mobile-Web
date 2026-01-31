@@ -24,6 +24,7 @@ export default function DashboardPage() {
 
   const items = filterSalesByBranch((data?.items ?? []) as any[], user?.role === "ADMİN" ? null : user?.branchId ?? null);
   const branches: Branch[] = branchData?.items ?? [];
+  const isPersonnel = user?.role === "PERSONEL";
   const today = new Date().toDateString();
 
   const todays = items.filter((s) => new Date(s.createdAt).toDateString() === today);
@@ -51,7 +52,20 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-500">Gün özeti + hızlı aksiyon.</p>
       </div>
 
-      <KpiCards revenue={revenue} profit={profit} loss={loss} salesCount={todays.length} />
+      {isPersonnel ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Bugün Satış</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{todays.length}</div>
+          </div>
+          <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Toplam Satış Tutarı</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{fmtTRY(revenue)}</div>
+          </div>
+        </div>
+      ) : (
+        <KpiCards revenue={revenue} profit={profit} loss={loss} salesCount={todays.length} />
+      )}
 
       <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm space-y-4">
         <div className="text-sm font-semibold text-slate-900">Gün Özeti (Bayi Bazlı)</div>
@@ -64,17 +78,21 @@ export default function DashboardPage() {
               <div className="font-medium text-slate-900">{summary.branch.name}</div>
               <div className="text-xs text-slate-500">Toplam satış: {summary.branchSales.length}</div>
               <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                <span>Ciro</span>
+                <span>Toplam satış tutarı</span>
                 <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-zinc-600">
-                <span>Net Kâr</span>
-                <span className="font-medium text-emerald-600">{fmtTRY(summary.branchProfit)}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-zinc-600">
-                <span>Zarar</span>
-                <span className="font-medium text-rose-600">{fmtTRY(summary.branchLoss)}</span>
-              </div>
+              {!isPersonnel && (
+                <>
+                  <div className="flex items-center justify-between text-xs text-zinc-600">
+                    <span>Net Kâr</span>
+                    <span className="font-medium text-emerald-600">{fmtTRY(summary.branchProfit)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-zinc-600">
+                    <span>Zarar</span>
+                    <span className="font-medium text-rose-600">{fmtTRY(summary.branchLoss)}</span>
+                  </div>
+                </>
+              )}
             </div>
           ))}
           {!branchSummary.length && <div className="text-sm text-slate-500">Bayi özeti bulunamadı.</div>}

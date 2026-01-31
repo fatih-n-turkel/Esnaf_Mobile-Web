@@ -31,18 +31,26 @@ export default function DashboardPage() {
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm">
         <div className="font-medium mb-2">Son Satışlar</div>
-        <div className="divide-y">
+        <div className="space-y-3">
           {items.slice(0, 8).map((s) => (
-            <div key={s.id} className="py-2 flex items-center justify-between text-sm">
-              <div>
-                <div className="font-medium">{new Date(s.createdAt).toLocaleString("tr-TR")}</div>
-                <div className="text-zinc-500">
-                  {s.paymentType} • {s.items.length} kalem
-                </div>
+            <div key={s.id} className="rounded-xl border p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Satış • {new Date(s.createdAt).toLocaleTimeString("tr-TR")}</div>
+                <span className="text-xs text-zinc-500">{s.paymentType}</span>
               </div>
-              <div className="text-right">
-                <div className="font-medium">{fmtTRY(s.totalRevenue)}</div>
-                <div className="text-xs text-zinc-500">Kâr: {fmtTRY(s.netProfit)}</div>
+              <div className="mt-2 space-y-1">
+                {s.items.map((item) => (
+                  <div key={`${s.id}-${item.productId}`} className="flex items-center justify-between">
+                    <span className="text-zinc-700">
+                      {item.name} x{item.qty}
+                    </span>
+                    <span className="font-medium">{fmtTRY(item.qty * item.unitSalePrice)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 border-t pt-2 flex items-center justify-between">
+                <span className="font-medium">Toplam</span>
+                <span className="font-medium">{fmtTRY(s.totalRevenue)}</span>
               </div>
             </div>
           ))}

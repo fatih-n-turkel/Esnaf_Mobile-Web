@@ -1,6 +1,6 @@
 import { fmtTRY } from "@/lib/money";
 
-export default function KpiCards(props: { revenue: number; profit: number; salesCount: number; vat: number }) {
+export default function KpiCards(props: { revenue: number; profit: number; salesCount: number; loss: number }) {
   const Card = ({ title, value }: { title: string; value: string }) => (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="text-xs text-zinc-500">{title}</div>
@@ -13,7 +13,7 @@ export default function KpiCards(props: { revenue: number; profit: number; sales
       <Card title="Bugün Ciro" value={fmtTRY(props.revenue)} />
       <Card title="Bugün Net Kâr" value={fmtTRY(props.profit)} />
       <Card title="Bugün Satış" value={`${props.salesCount}`} />
-      <Card title="KDV Toplam" value={fmtTRY(props.vat)} />
+      <Card title="Bugün Zarar" value={fmtTRY(props.loss)} />
     </div>
   );
 }

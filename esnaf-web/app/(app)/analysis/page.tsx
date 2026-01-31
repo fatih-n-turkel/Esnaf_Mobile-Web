@@ -73,6 +73,40 @@ export default function AnalysisPage() {
     });
   }, [personnelUsers, sales]);
 
+  const managerSummaries = useMemo(() => {
+    const managers = people.filter((person) => person.role === "MÜDÜR");
+    return managers.map((manager) => {
+      const ownSales = sales.filter((sale) => sale.createdBy.id === manager.id);
+      const assignedPersonnel = people.filter((person) => person.managerId === manager.id);
+      const managedBranchIds = Array.from(
+        new Set([manager.branchId, ...assignedPersonnel.map((person) => person.branchId)].filter(Boolean))
+      ) as string[];
+      const managedSales = sales.filter((sale) => managedBranchIds.includes(sale.branchId ?? ""));
+      return {
+        manager,
+        ownSales,
+        assignedPersonnel,
+        managedBranches: branches.filter((branch) => managedBranchIds.includes(branch.id)),
+        managedSales,
+      };
+    });
+  }, [people, sales, branches]);
+
+  const financialSummary = useMemo(() => {
+    return scopedSales.reduce(
+      (acc, sale) => {
+        acc.revenue += sale.totalRevenue;
+        acc.cost += sale.totalCost;
+        acc.vat += sale.totalVat;
+        acc.posFee += sale.posFeeAmount;
+        acc.profit += sale.netProfit > 0 ? sale.netProfit : 0;
+        acc.loss += sale.netProfit < 0 ? Math.abs(sale.netProfit) : 0;
+        return acc;
+      },
+      { revenue: 0, cost: 0, vat: 0, posFee: 0, profit: 0, loss: 0 }
+    );
+  }, [scopedSales]);
+
   if (!canSeePersonnel) {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece admin ve müdür kullanıcılar içindir.</div>;
   }
@@ -188,27 +222,131 @@ export default function AnalysisPage() {
         </div>
       </div>
 
+      {user?.role === "ADMİN" && (
+        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
+          <div>
+            <div className="font-medium">Müdür Analizleri</div>
+            <p className="text-xs text-zinc-500">
+              Müdürlerin kendi satışları, yönettikleri bayiler ve personellerin performans özeti.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {managerSummaries.map((summary) => (
+              <div key={summary.manager.id} className="rounded-xl border bg-zinc-50 p-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="font-medium">{summary.manager.name}</div>
+                    <div className="text-xs text-zinc-500">@{summary.manager.username}</div>
+                    {summary.manager.branchId && (
+                      <div className="text-[11px] text-zinc-400">{branchLabel(branches, summary.manager.branchId)}</div>
+                    )}
+                  </div>
+                  <div className="text-xs text-zinc-500 text-right">
+                    Kendi satış: <span className="font-medium text-zinc-900">{summary.ownSales.length}</span>
+                    <div>Yönettiği satış: {summary.managedSales.length}</div>
+                  </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3 text-xs">
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Kendi Performansı</div>
+                    <div className="text-zinc-500 mt-1">
+                      Ciro: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.totalRevenue, 0))}
+                    </div>
+                    <div className="text-zinc-500">Kâr: {fmtTRY(summary.ownSales.reduce((s, sale) => s + sale.netProfit, 0))}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Bağlı Bayiler</div>
+                    <div className="text-zinc-500 mt-1">
+                      {summary.managedBranches.map((branch) => branch.name).join(", ") || "Bayi yok"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-white px-3 py-2">
+                    <div className="font-medium">Bağlı Personeller</div>
+                    <div className="text-zinc-500 mt-1">
+                      {summary.assignedPersonnel.map((person) => person.name).join(", ") || "Personel yok"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!managerSummaries.length && <div className="text-sm text-zinc-500">Müdür bulunamadı.</div>}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
           <div className="font-medium">Dönemsel Raporlar</div>
-          <ul className="text-sm text-zinc-600 list-disc pl-5 space-y-1">
-            <li>Günlük / haftalık / aylık / yıllık / çeyrek dönem raporları</li>
-            <li>Ciro ve net kâr grafikleri</li>
-            <li>En çok satan ürünler</li>
-            <li>En çok kâr bırakan ürünler</li>
-            <li>Ödeme tipi dağılımı</li>
-            <li>Personel bazlı satış performansı</li>
-          </ul>
+          <div className="grid gap-2 text-xs md:grid-cols-2">
+            {analyticsPeriods.map((period) => {
+              const summary = calcAnalyticsForPeriod(scopedSales, period);
+              return (
+                <div key={period.key} className="rounded-lg border bg-zinc-50 px-3 py-2">
+                  <div className="font-medium">{period.label}</div>
+                  <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
+                  <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
+                  <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
+                  <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
           <div className="font-medium">Maliyet & Gider Analizi</div>
-          <ul className="text-sm text-zinc-600 list-disc pl-5 space-y-1">
-            <li>Ürün bazlı maliyet takibi</li>
-            <li>Ödeme türüne göre giderler: Nakit, Kart (POS komisyonu / sabit gider)</li>
-            <li>Satış anında ve raporlarda: Satış geliri, ürün maliyeti, POS giderleri</li>
-            <li>Net kâr / zarar kırılımı</li>
-          </ul>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span>Toplam maliyet</span>
+              <span className="font-medium">{fmtTRY(financialSummary.cost)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>POS gideri</span>
+              <span className="font-medium">{fmtTRY(financialSummary.posFee)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>KDV</span>
+              <span className="font-medium">{fmtTRY(financialSummary.vat)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Net kâr</span>
+              <span className="font-medium text-emerald-600">{fmtTRY(financialSummary.profit)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Zarar</span>
+              <span className="font-medium text-rose-600">{fmtTRY(financialSummary.loss)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+        <div className="font-medium">Finansal Rapor</div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">Toplam Satış</div>
+            <div className="text-lg font-semibold">{fmtTRY(financialSummary.revenue)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">Toplam Maliyet</div>
+            <div className="text-lg font-semibold">{fmtTRY(financialSummary.cost)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">KDV</div>
+            <div className="text-lg font-semibold">{fmtTRY(financialSummary.vat)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">POS Gideri</div>
+            <div className="text-lg font-semibold">{fmtTRY(financialSummary.posFee)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">Kâr</div>
+            <div className="text-lg font-semibold text-emerald-600">{fmtTRY(financialSummary.profit)}</div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-500">Zarar</div>
+            <div className="text-lg font-semibold text-rose-600">{fmtTRY(financialSummary.loss)}</div>
+          </div>
         </div>
       </div>
 

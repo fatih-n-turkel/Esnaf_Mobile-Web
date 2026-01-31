@@ -3,6 +3,7 @@ import '../local/hive_boxes.dart';
 import '../models/models.dart';
 import 'products_repo.dart';
 import 'outbox_repo.dart';
+import 'notifications_repo.dart';
 
 class SalesRepo {
   SalesRepo(this.ref);
@@ -93,6 +94,16 @@ class SalesRepo {
       'sale': sale.toMap(),
       'items': patchedItems.map((e) => e.toMap()).toList(),
     });
+
+    final notifications = ref.read(notificationsRepoProvider);
+    notifications.add(AppNotification(
+      id: newId(),
+      title: 'Yeni satış oluşturuldu',
+      message: '$createdBy yeni bir satış yaptı.',
+      createdAt: now,
+      scope: NotificationScope.branch,
+      branchId: branchId,
+    ));
 
     return saleId;
   }

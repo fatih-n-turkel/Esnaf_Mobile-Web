@@ -14,6 +14,7 @@ export type DemoUser = {
   role: Role;
   landingPath: string;
   branchId?: string | null;
+  managerId?: string | null;
 };
 
 export type PaymentType = "CASH" | "CARD";
@@ -62,6 +63,17 @@ export type Sale = {
   netProfit: number;
 
   items: SaleItem[];
+};
+
+export type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+  scope: "GLOBAL" | "BRANCH" | "USER";
+  branchId?: string | null;
+  userId?: string | null;
 };
 
 export type Category = {

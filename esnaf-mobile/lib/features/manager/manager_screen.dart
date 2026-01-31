@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/auth_repo.dart';
 import '../../data/repositories/branches_repo.dart';
+import '../../data/repositories/sales_repo.dart';
 import '../../data/models/models.dart';
 
 class ManagerScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
     final branchId = auth.getBranchId();
+    final salesRepo = ref.watch(salesRepoProvider);
 
     ref.watch(branchesSeedProvider);
     final branches = ref.watch(branchesRepoProvider).list();
@@ -42,8 +44,15 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
     final branchLabel = branch.isEmpty ? 'Bilinmeyen bayi' : branch.first.name;
     final personnel = auth
         .listUsers()
-        .where((u) => u.role == 'staff' && u.branchId == branchId)
+        .where((u) => u.role == 'staff' && u.managerId == auth.currentUserId)
         .toList();
+
+    final sales = salesRepo.listRecent(limit: 300).where((s) => s.branchId == branchId).toList();
+    final ownSales = sales.where((s) => s.createdBy == auth.currentUserId).toList();
+    final ownRevenue = ownSales.fold<double>(0, (sum, s) => sum + s.totalGross);
+    final ownProfit = ownSales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
+    final managedRevenue = sales.fold<double>(0, (sum, s) => sum + s.totalGross);
+    final managedProfit = sales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
 
     _branchId = _branchId.isEmpty ? branchId : _branchId;
 
@@ -55,6 +64,30 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
           const SizedBox(height: 4),
           Text('Operasyon özetleri, ekip yönetimi ve satış kontrolleri.',
               style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Müdür Özeti', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _StatCard(title: 'Kendi Satış', value: '${ownSales.length}', icon: Icons.receipt_long),
+                      _StatCard(title: 'Ciro (Kendi)', value: _fmtMoney(ownRevenue), icon: Icons.payments_outlined),
+                      _StatCard(title: 'Kâr (Kendi)', value: _fmtMoney(ownProfit), icon: Icons.trending_up),
+                      _StatCard(title: 'Ciro (Bayi)', value: _fmtMoney(managedRevenue), icon: Icons.store),
+                      _StatCard(title: 'Kâr (Bayi)', value: _fmtMoney(managedProfit), icon: Icons.show_chart),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -97,6 +130,7 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
                             username: username,
                             role: 'staff',
                             branchId: _branchId,
+                            managerId: auth.currentUserId,
                           );
                         } else {
                           auth.upsertUser(
@@ -105,6 +139,7 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
                             role: 'staff',
                             branchId: _branchId,
                             password: '1234',
+                            managerId: auth.currentUserId,
                           );
                         }
                         setState(() {
@@ -151,6 +186,40 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+String _fmtMoney(double value) => '₺${value.toStringAsFixed(2)}';
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.title, required this.value, required this.icon});
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 160,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 12)),
+                  Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              )
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,10 +1,13 @@
 "use client";
 
 import { useCart } from "@/store/cart";
+import { useAuth } from "@/store/auth";
 import { calcSaleTotals, fmtTRY } from "@/lib/money";
 
 export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<void> }) {
   const cart = useCart();
+  const user = useAuth((state) => state.user);
+  const isPersonnel = user?.role === "PERSONEL";
   const totals = calcSaleTotals(cart.items, cart.paymentType, cart.posFeeType, cart.posFeeValue);
 
   return (
@@ -64,51 +67,26 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
           ))}
         </div>
 
-        {cart.paymentType === "CARD" && (
-          <div className="rounded-2xl border p-3 bg-zinc-50">
-            <div className="text-xs text-zinc-500 mb-2">POS Komisyonu</div>
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={cart.posFeeType}
-                onChange={(e) => cart.setPosFeeType(e.target.value as any)}
-                className="rounded-lg border px-2 py-2 text-sm bg-white"
-              >
-                <option value="RATE">Oran</option>
-                <option value="FIXED">Sabit</option>
-              </select>
-              <input
-                value={String(cart.posFeeValue)}
-                onChange={(e) => cart.setPosFeeValue(Number(e.target.value))}
-                className="flex-1 min-w-[120px] rounded-lg border px-3 py-2 text-sm bg-white"
-                placeholder={cart.posFeeType === "RATE" ? "0.02 = %2" : "5 = 5₺"}
-              />
+        {!isPersonnel && (
+          <>
+            <div className="text-sm flex justify-between">
+              <span>Ciro</span>
+              <b>{fmtTRY(totals.totalRevenue)}</b>
             </div>
-            <div className="text-xs text-zinc-600 mt-2">
-              Komisyon Tutarı: <b>{fmtTRY(totals.posFeeAmount)}</b>
+            <div className="text-sm flex justify-between">
+              <span>Maliyet</span>
+              <span>{fmtTRY(totals.totalCost)}</span>
             </div>
-          </div>
+            <div className="text-sm flex justify-between">
+              <span>KDV</span>
+              <span>{fmtTRY(totals.totalVat)}</span>
+            </div>
+            <div className="text-sm flex justify-between">
+              <span>Net Kâr</span>
+              <span>{fmtTRY(totals.netProfit)}</span>
+            </div>
+          </>
         )}
-
-        <div className="text-sm flex justify-between">
-          <span>Ciro</span>
-          <b>{fmtTRY(totals.totalRevenue)}</b>
-        </div>
-        <div className="text-sm flex justify-between">
-          <span>Maliyet</span>
-          <span>{fmtTRY(totals.totalCost)}</span>
-        </div>
-        <div className="text-sm flex justify-between">
-          <span>KDV</span>
-          <span>{fmtTRY(totals.totalVat)}</span>
-        </div>
-        <div className="text-sm flex justify-between">
-          <span>POS</span>
-          <span>{fmtTRY(totals.posFeeAmount)}</span>
-        </div>
-        <div className="text-sm flex justify-between">
-          <span>Net Kâr</span>
-          <span>{fmtTRY(totals.netProfit)}</span>
-        </div>
         <div className="text-base flex justify-between border-t pt-2">
           <span>Toplam</span>
           <b>{fmtTRY(totals.totalRevenue)}</b>

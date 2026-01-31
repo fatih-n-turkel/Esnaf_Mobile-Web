@@ -13,6 +13,9 @@ class ReportsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authRepoProvider).getRole();
     final canProfit = _canSeeProfit(role);
+    if (!canProfit) {
+      return const Center(child: Text('Bu sayfa sadece admin ve müdür kullanıcılar içindir.'));
+    }
 
     final sales = ref.watch(salesRepoProvider).listRecent(limit: 200);
 

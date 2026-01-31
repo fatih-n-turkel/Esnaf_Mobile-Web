@@ -161,6 +161,11 @@ function seedSalesOnce() {
   if (db.sales.length) return;
 
   const products = db.products;
+  const seedUsers = [
+    { id: "user-admin", name: "Fatih", role: "ADMİN" as const },
+    { id: "user-manager", name: "Mehmet", role: "MÜDÜR" as const },
+    { id: "user-personnel", name: "Cenk", role: "PERSONEL" as const },
+  ];
   const sampleSales: Array<{ daysAgo: number; items: Array<{ productId: string; qty: number }> }> = [
     { daysAgo: 0, items: [{ productId: products[0].id, qty: 6 }, { productId: products[1].id, qty: 3 }] },
     { daysAgo: 1, items: [{ productId: products[2].id, qty: 4 }] },
@@ -174,7 +179,7 @@ function seedSalesOnce() {
     { daysAgo: 320, items: [{ productId: products[2].id, qty: 5 }] },
   ];
 
-  for (const seed of sampleSales) {
+  sampleSales.forEach((seed, index) => {
     const createdAt = new Date();
     createdAt.setDate(createdAt.getDate() - seed.daysAgo);
     const items = seed.items.map((entry) => {
@@ -201,7 +206,7 @@ function seedSalesOnce() {
       id: randomUUID(),
       clientRequestId: randomUUID(),
       createdAt: createdAt.toISOString(),
-      createdBy: { id: "seed-user", name: "Seed", role: "ADMİN" },
+      createdBy: seedUsers[index % seedUsers.length],
       paymentType: "CASH",
       posFeeType: "RATE",
       posFeeValue: 0,
@@ -213,5 +218,5 @@ function seedSalesOnce() {
       items,
     };
     db.sales.push(created);
-  }
+  });
 }

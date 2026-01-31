@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authenticate, demoUsers } from "@/lib/auth";
+import { authenticate, getDemoUsers } from "@/lib/auth";
 import { useAuth } from "@/store/auth";
 
 export default function LoginPage() {
@@ -13,6 +13,11 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [demoList, setDemoList] = useState(getDemoUsers());
+
+  useEffect(() => {
+    setDemoList(getDemoUsers());
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -71,9 +76,7 @@ export default function LoginPage() {
         <div className="rounded-xl border bg-zinc-50 p-3 text-xs text-zinc-600">
           <div className="font-medium text-zinc-700 mb-2">Demo hesaplar</div>
           <ul className="space-y-1">
-            {demoUsers
-              .filter((demo) => !demo.username.includes("mudur"))
-              .map((demo) => (
+            {demoList.map((demo) => (
                 <li key={demo.id}>
                   <span className="font-medium">{demo.name}</span> — {demo.username} / {demo.password}
                 </li>

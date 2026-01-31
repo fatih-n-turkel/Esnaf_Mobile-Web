@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsPeriods, calcAnalyticsForPeriod } from "@/lib/analytics";
 import { fmtTRY } from "@/lib/money";
-import { DemoUser, Product, Sale } from "@/lib/types";
+import { Branch, DemoUser, Product, Sale } from "@/lib/types";
 import { getDemoUsers, roleLabel } from "@/lib/auth";
+import { branchLabel, filterSalesByBranch, filterUsersByBranch, getBranchStock } from "@/lib/branches";
 import { useAuth } from "@/store/auth";
 
 async function fetchProducts() {
@@ -15,6 +16,11 @@ async function fetchProducts() {
 
 async function fetchSales() {
   const r = await fetch("/api/sales", { cache: "no-store" });
+  return r.json();
+}
+
+async function fetchBranches() {
+  const r = await fetch("/api/branches", { cache: "no-store" });
   return r.json();
 }
 
@@ -28,9 +34,13 @@ export default function Topbar() {
 
   const { data: productData } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const { data: salesData } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
+  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
 
   const products: Product[] = productData?.items ?? [];
   const sales: Sale[] = salesData?.items ?? [];
+  const branches: Branch[] = branchData?.items ?? [];
+  const branchId = user?.role === "ADMİN" ? null : user?.branchId ?? null;
+  const scopedSales = useMemo(() => filterSalesByBranch(sales, branchId ?? undefined), [sales, branchId]);
   const canSeePersonnel = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   useEffect(() => {
@@ -46,14 +56,17 @@ export default function Topbar() {
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [products, query]);
+    return products
+      .map((p) => ({ ...p, stockOnHand: getBranchStock(p, branchId ?? undefined) }))
+      .filter((p) => p.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [products, query, branchId]);
 
   const personMatches = useMemo(() => {
     if (!canSeePersonnel) return [];
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return people
+    return filterUsersByBranch(people, branchId ?? undefined)
       .filter((person) => person.role !== "ADMİN")
       .filter(
         (person) =>
@@ -61,7 +74,7 @@ export default function Topbar() {
           person.username.toLowerCase().includes(q)
       )
       .slice(0, 6);
-  }, [canSeePersonnel, people, query]);
+  }, [canSeePersonnel, people, query, branchId]);
 
   const selectedPerson = useMemo(() => {
     if (!selectedPersonId) return null;
@@ -70,16 +83,16 @@ export default function Topbar() {
 
   const personSales = useMemo(() => {
     if (!selectedPerson) return [];
-    return sales.filter((sale) => sale.createdBy.id === selectedPerson.id);
-  }, [sales, selectedPerson]);
+    return scopedSales.filter((sale) => sale.createdBy.id === selectedPerson.id);
+  }, [scopedSales, selectedPerson]);
 
   const analytics = useMemo(() => {
     if (!selected) return [];
     return analyticsPeriods.map((period) => ({
       period,
-      summary: calcAnalyticsForPeriod(sales, period, selected.id),
+      summary: calcAnalyticsForPeriod(scopedSales, period, selected.id),
     }));
-  }, [sales, selected]);
+  }, [scopedSales, selected]);
 
   const personAnalytics = useMemo(() => {
     if (!selectedPerson) return [];
@@ -161,6 +174,11 @@ export default function Topbar() {
               <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
                 {user?.role ? roleLabel(user.role) : "Misafir"}
               </span>
+              {user?.branchId && (
+                <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
+                  {branchLabel(branches, user.branchId)}
+                </span>
+              )}
             </div>
             <button onClick={logout} className="text-xs text-zinc-500 hover:text-zinc-900">
               Çıkış

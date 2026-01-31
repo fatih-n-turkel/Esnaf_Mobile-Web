@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/hive_boxes.dart';
+import 'branches_repo.dart';
 
 class AuthRepo extends ChangeNotifier {
   AuthRepo() {
@@ -16,9 +17,23 @@ class AuthRepo extends ChangeNotifier {
   static const _seedKey = 'users_initialized';
 
   final List<AuthUser> _defaultUsers = const [
-    AuthUser(id: 'user-admin', name: 'Fatih', username: 'fatih', password: 'fatih', role: 'admin'),
-    AuthUser(id: 'user-manager', name: 'Mehmet', username: 'mehmet', password: 'mehmet', role: 'manager'),
-    AuthUser(id: 'user-staff', name: 'Cenk', username: 'cenk', password: 'cenk', role: 'staff'),
+    AuthUser(id: 'user-admin', name: 'Fatih', username: 'fatih', password: 'fatih', role: 'admin', branchId: ''),
+    AuthUser(
+      id: 'user-manager',
+      name: 'Mehmet',
+      username: 'mehmet',
+      password: 'mehmet',
+      role: 'manager',
+      branchId: defaultBranchMainId,
+    ),
+    AuthUser(
+      id: 'user-staff',
+      name: 'Cenk',
+      username: 'cenk',
+      password: 'cenk',
+      role: 'staff',
+      branchId: defaultBranchMainId,
+    ),
   ];
 
   void _seedUsers(box) {
@@ -73,11 +88,19 @@ class AuthRepo extends ChangeNotifier {
     return (u?['role'] ?? 'staff') as String;
   }
 
+  String getBranchId() {
+    if (_currentUserId == null) return '';
+    final box = HiveBoxes.box(HiveBoxes.users);
+    final u = box.get(_currentUserId!);
+    return (u?['branchId'] ?? '') as String;
+  }
+
   Future<void> upsertUser({
     required String name,
     required String username,
     required String role,
     String? password,
+    String? branchId,
   }) async {
     final box = HiveBoxes.box(HiveBoxes.users);
     final normalized = username.trim().toLowerCase();
@@ -88,6 +111,7 @@ class AuthRepo extends ChangeNotifier {
       username: normalized,
       password: password?.trim() ?? existing?['password'] as String? ?? '1234',
       role: role,
+      branchId: branchId ?? existing?['branchId'] as String? ?? '',
     );
     await box.put(normalized, data.toMap());
     notifyListeners();
@@ -118,12 +142,14 @@ class AuthUser {
     required this.username,
     required this.password,
     required this.role,
+    required this.branchId,
   });
   final String id;
   final String name;
   final String username;
   final String password;
   final String role;
+  final String branchId;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -131,6 +157,7 @@ class AuthUser {
         'username': username,
         'password': password,
         'role': role,
+        'branchId': branchId,
       };
 
   factory AuthUser.fromMap(Map m) => AuthUser(
@@ -139,5 +166,6 @@ class AuthUser {
         username: (m['username'] ?? '') as String,
         password: (m['password'] ?? '') as String,
         role: (m['role'] ?? 'staff') as String,
+        branchId: (m['branchId'] ?? '') as String,
       );
 }

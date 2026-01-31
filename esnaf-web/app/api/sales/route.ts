@@ -12,6 +12,7 @@ export async function POST(req: Request) {
 
   const clientRequestId: string = body.clientRequestId;
   const createdBy = body.createdBy; // demo
+  const branchId = body.branchId ?? null;
   const items = body.items ?? [];
   const paymentType = body.paymentType ?? "CASH";
   const posFeeType = body.posFeeType ?? "RATE";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
     // clientRequestId route içinde overwrite edilse de tip için burada var:
     clientRequestId,
     createdBy,
+    branchId,
     paymentType,
     posFeeType,
     posFeeValue,

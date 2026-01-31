@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/products_repo.dart';
+import '../../data/repositories/auth_repo.dart';
 import '../../data/models/models.dart';
 import 'quick_sale_screen.dart';
 
@@ -59,8 +60,9 @@ class _QRSaleScreenState extends ConsumerState<QRSaleScreen> {
               if (v == last) return;
 
               final normalized = v.trim().toLowerCase();
+              final branchId = ref.read(authRepoProvider).getBranchId();
               final repo = ref.read(productsRepoProvider);
-              final products = repo.list();
+              final products = repo.list(branchId: branchId);
               Product? found;
               for (final p in products) {
                 if (p.qrValue.trim().toLowerCase() == normalized) {

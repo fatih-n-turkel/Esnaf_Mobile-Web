@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/settings_repo.dart';
+import '../../data/repositories/branches_repo.dart';
 
 class ProductEditScreen extends ConsumerStatefulWidget {
   const ProductEditScreen({super.key, required this.product});
@@ -142,6 +143,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
                       vatRate: s.defaultVatRate,
                       criticalStock: s.criticalStockDefault,
                       stockQty: 0,
+                      stockByBranch: const {defaultBranchMainId: 0},
                       isActive: true,
                       qrValue: '',
                       updatedAt: now,
@@ -154,6 +156,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
                   vatRate: _d(vatRate.text) / 100.0,
                   criticalStock: _d(criticalStock.text),
                   stockQty: _d(stockQty.text),
+                  stockByBranch: widget.product?.stockByBranch ?? {defaultBranchMainId: _d(stockQty.text)},
                   qrValue: qrValue.text.trim(),
                   updatedAt: now,
                 );

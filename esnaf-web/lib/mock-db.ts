@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { Category, Product, Sale, Settings, DemoUser } from "./types";
+import { Branch, Category, Product, Sale, Settings, DemoUser } from "./types";
 
 type DatabaseFile = {
   products: Product[];
@@ -9,6 +9,7 @@ type DatabaseFile = {
   settings: Settings;
   sales: Sale[];
   users: DemoUser[];
+  branches: Branch[];
 };
 
 const now = () => new Date().toISOString();
@@ -31,7 +32,14 @@ function readDatabase(): DatabaseFile {
   ensureDatabaseFile();
   const raw = fs.readFileSync(databaseFile, "utf8");
   try {
-    return JSON.parse(raw) as DatabaseFile;
+    const parsed = JSON.parse(raw) as DatabaseFile;
+    if (!parsed.branches) {
+      const seed = buildSeedDatabase();
+      const merged = { ...parsed, branches: seed.branches };
+      writeDatabase(merged);
+      return merged;
+    }
+    return parsed;
   } catch {
     const seed = buildSeedDatabase();
     fs.writeFileSync(databaseFile, JSON.stringify(seed, null, 2), "utf8");
@@ -44,6 +52,13 @@ function writeDatabase(next: DatabaseFile) {
 }
 
 function buildSeedDatabase(): DatabaseFile {
+  const branchMainId = randomUUID();
+  const branchCoastId = randomUUID();
+  const branches: Branch[] = [
+    { id: branchMainId, name: "Merkez Şube", createdAt: now() },
+    { id: branchCoastId, name: "Sahil Şube", createdAt: now() },
+  ];
+
   const seededProducts: Product[] = [
     {
       id: randomUUID(),
@@ -54,6 +69,10 @@ function buildSeedDatabase(): DatabaseFile {
       vatRate: 0.01,
       criticalStockLevel: 10,
       stockOnHand: 85,
+      stockByBranch: {
+        [branchMainId]: 50,
+        [branchCoastId]: 35,
+      },
       qrCode: "QR-SU-05L-0001",
       isActive: true,
       updatedAt: now(),
@@ -67,6 +86,10 @@ function buildSeedDatabase(): DatabaseFile {
       vatRate: 0.1,
       criticalStockLevel: 8,
       stockOnHand: 12,
+      stockByBranch: {
+        [branchMainId]: 7,
+        [branchCoastId]: 5,
+      },
       qrCode: "QR-CIPS-0002",
       isActive: true,
       updatedAt: now(),
@@ -80,6 +103,10 @@ function buildSeedDatabase(): DatabaseFile {
       vatRate: 0.2,
       criticalStockLevel: 5,
       stockOnHand: 4,
+      stockByBranch: {
+        [branchMainId]: 2,
+        [branchCoastId]: 2,
+      },
       qrCode: "QR-DEFTER-A4-0003",
       isActive: true,
       updatedAt: now(),
@@ -106,6 +133,7 @@ function buildSeedDatabase(): DatabaseFile {
       name: "Fatih",
       role: "ADMİN",
       landingPath: "/admin",
+      branchId: null,
     },
     {
       id: "user-manager",
@@ -114,6 +142,7 @@ function buildSeedDatabase(): DatabaseFile {
       name: "Mehmet",
       role: "MÜDÜR",
       landingPath: "/manager",
+      branchId: branchMainId,
     },
     {
       id: "user-personnel",
@@ -122,10 +151,11 @@ function buildSeedDatabase(): DatabaseFile {
       name: "Cenk",
       role: "PERSONEL",
       landingPath: "/personnel",
+      branchId: branchMainId,
     },
   ];
 
-  const sales = buildSeedSales(seededProducts, users);
+  const sales = buildSeedSales(seededProducts, users, branches);
 
   return {
     products: seededProducts,
@@ -133,10 +163,11 @@ function buildSeedDatabase(): DatabaseFile {
     settings: { defaultVatRate: 0.2 },
     sales,
     users,
+    branches,
   };
 }
 
-function buildSeedSales(products: Product[], users: DemoUser[]): Sale[] {
+function buildSeedSales(products: Product[], users: DemoUser[], branches: Branch[]): Sale[] {
   const sampleSales: Array<{ daysAgo: number; items: Array<{ productId: string; qty: number }> }> = [
     { daysAgo: 0, items: [{ productId: products[0].id, qty: 6 }, { productId: products[1].id, qty: 3 }] },
     { daysAgo: 1, items: [{ productId: products[2].id, qty: 4 }] },
@@ -174,12 +205,14 @@ function buildSeedSales(products: Product[], users: DemoUser[]): Sale[] {
     const netProfit = totalRevenue - totalCost;
 
     const createdBy = users[index % users.length];
+    const branchId = createdBy.branchId ?? branches[0]?.id ?? null;
 
     return {
       id: randomUUID(),
       clientRequestId: randomUUID(),
       createdAt: createdAt.toISOString(),
       createdBy: { id: createdBy.id, name: createdBy.name, role: createdBy.role },
+      branchId,
       paymentType: "CASH",
       posFeeType: "RATE",
       posFeeValue: 0,
@@ -200,12 +233,19 @@ export function listProducts() {
 
 export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">) {
   const db = readDatabase();
+  const defaultBranchId = db.branches[0]?.id;
+  const stockByBranch = input.stockByBranch
+    ? { ...input.stockByBranch }
+    : defaultBranchId
+      ? { [defaultBranchId]: input.stockOnHand }
+      : undefined;
   const created: Product = {
     ...input,
     id: randomUUID(),
     isActive: true,
     updatedAt: now(),
     qrCode: input.qrCode ?? makeQrCode(input.name),
+    stockByBranch,
   };
   db.products.unshift(created);
   if (created.category) {
@@ -276,7 +316,14 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
   for (const it of created.items) {
     const p = db.products.find((x) => x.id === it.productId);
     if (p) {
-      p.stockOnHand = Math.max(0, p.stockOnHand - it.qty);
+      const branchId = created.branchId ?? db.branches[0]?.id;
+      if (branchId) {
+        if (!p.stockByBranch) p.stockByBranch = {};
+        const currentStock = p.stockByBranch[branchId] ?? 0;
+        p.stockByBranch[branchId] = Math.max(0, currentStock - it.qty);
+      }
+      const branchTotals = p.stockByBranch ? Object.values(p.stockByBranch) : [];
+      p.stockOnHand = branchTotals.length ? branchTotals.reduce((sum, value) => sum + value, 0) : p.stockOnHand;
       p.updatedAt = now();
     }
   }
@@ -301,4 +348,17 @@ export function saveUsers(users: DemoUser[]) {
   db.users = users;
   writeDatabase(db);
   return db.users;
+}
+
+export function listBranches() {
+  const db = readDatabase();
+  return db.branches.slice();
+}
+
+export function addBranch(name: string) {
+  const db = readDatabase();
+  const created: Branch = { id: randomUUID(), name: name.trim(), createdAt: now() };
+  db.branches.unshift(created);
+  writeDatabase(db);
+  return created;
 }

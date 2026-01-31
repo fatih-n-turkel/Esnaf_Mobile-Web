@@ -10,6 +10,26 @@ enum PosFeeType { percent, fixed }
 
 enum StockMoveType { inMove, outMove, adjust }
 
+class Branch {
+  Branch({required this.id, required this.name, required this.createdAt});
+
+  final String id;
+  final String name;
+  final int createdAt;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'createdAt': createdAt,
+      };
+
+  factory Branch.fromMap(Map m) => Branch(
+        id: (m['id'] ?? '') as String,
+        name: (m['name'] ?? '') as String,
+        createdAt: (m['createdAt'] ?? 0) as int,
+      );
+}
+
 class Product {
   Product({
     required this.id,
@@ -20,6 +40,7 @@ class Product {
     required this.vatRate,
     required this.criticalStock,
     required this.stockQty,
+    required this.stockByBranch,
     required this.isActive,
     required this.qrValue,
     required this.updatedAt,
@@ -33,6 +54,7 @@ class Product {
   final double vatRate; // 0.20 = %20
   final double criticalStock;
   final double stockQty;
+  final Map<String, double> stockByBranch;
   final bool isActive;
   final String qrValue;
   final int updatedAt;
@@ -46,6 +68,7 @@ class Product {
         'vatRate': vatRate,
         'criticalStock': criticalStock,
         'stockQty': stockQty,
+        'stockByBranch': stockByBranch,
         'isActive': isActive,
         'qrValue': qrValue,
         'updatedAt': updatedAt,
@@ -60,6 +83,9 @@ class Product {
         vatRate: (m['vatRate'] ?? 0.20).toDouble(),
         criticalStock: (m['criticalStock'] ?? 0).toDouble(),
         stockQty: (m['stockQty'] ?? 0).toDouble(),
+        stockByBranch: (m['stockByBranch'] is Map
+            ? (m['stockByBranch'] as Map).map((key, value) => MapEntry(key.toString(), (value ?? 0).toDouble()))
+            : <String, double>{}),
         isActive: (m['isActive'] ?? true) as bool,
         qrValue: (m['qrValue'] ?? '') as String,
         updatedAt: (m['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch) as int,
@@ -73,6 +99,7 @@ class Product {
     double? vatRate,
     double? criticalStock,
     double? stockQty,
+    Map<String, double>? stockByBranch,
     bool? isActive,
     String? qrValue,
     int? updatedAt,
@@ -86,6 +113,7 @@ class Product {
         vatRate: vatRate ?? this.vatRate,
         criticalStock: criticalStock ?? this.criticalStock,
         stockQty: stockQty ?? this.stockQty,
+        stockByBranch: stockByBranch ?? this.stockByBranch,
         isActive: isActive ?? this.isActive,
         qrValue: qrValue ?? this.qrValue,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -104,6 +132,7 @@ class Sale {
     required this.totalNetProfit,
     required this.createdAt,
     required this.createdBy,
+    required this.branchId,
     required this.status,
   });
 
@@ -117,6 +146,7 @@ class Sale {
   final double totalNetProfit;
   final int createdAt;
   final String createdBy;
+  final String branchId;
   final String status; // completed/cancelled
 
   Map<String, dynamic> toMap() => {
@@ -130,6 +160,7 @@ class Sale {
         'totalNetProfit': totalNetProfit,
         'createdAt': createdAt,
         'createdBy': createdBy,
+        'branchId': branchId,
         'status': status,
       };
 
@@ -144,6 +175,7 @@ class Sale {
         totalNetProfit: (m['totalNetProfit'] ?? 0).toDouble(),
         createdAt: (m['createdAt'] ?? 0) as int,
         createdBy: (m['createdBy'] ?? 'admin') as String,
+        branchId: (m['branchId'] ?? '') as String,
         status: (m['status'] ?? 'completed') as String,
       );
 }
@@ -207,6 +239,7 @@ class StockMovement {
     required this.reason,
     required this.createdAt,
     required this.createdBy,
+    required this.branchId,
   });
 
   final String id;
@@ -216,6 +249,7 @@ class StockMovement {
   final String reason;
   final int createdAt;
   final String createdBy;
+  final String branchId;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -225,6 +259,7 @@ class StockMovement {
         'reason': reason,
         'createdAt': createdAt,
         'createdBy': createdBy,
+        'branchId': branchId,
       };
 
   static StockMovement fromMap(Map m) => StockMovement(
@@ -235,6 +270,7 @@ class StockMovement {
         reason: (m['reason'] ?? '') as String,
         createdAt: (m['createdAt'] ?? 0) as int,
         createdBy: (m['createdBy'] ?? 'admin') as String,
+        branchId: (m['branchId'] ?? '') as String,
       );
 }
 

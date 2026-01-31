@@ -12,12 +12,17 @@ class ReportsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authRepoProvider).getRole();
+    final branchId = ref.watch(authRepoProvider).getBranchId();
     final canProfit = _canSeeProfit(role);
     if (!canProfit) {
       return const Center(child: Text('Bu sayfa sadece admin ve müdür kullanıcılar içindir.'));
     }
 
-    final sales = ref.watch(salesRepoProvider).listRecent(limit: 200);
+    final sales = ref
+        .watch(salesRepoProvider)
+        .listRecent(limit: 200)
+        .where((sale) => role == 'admin' || branchId.isEmpty || sale.branchId == branchId)
+        .toList();
 
     final totalGross = sales.fold<double>(0, (s, e) => s + e.totalGross);
     final totalVat = sales.fold<double>(0, (s, e) => s + e.totalVat);

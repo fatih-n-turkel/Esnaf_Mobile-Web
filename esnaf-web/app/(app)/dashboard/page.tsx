@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import KpiCards from "@/components/kpi-cards";
 import { fmtTRY } from "@/lib/money";
+import { filterSalesByBranch } from "@/lib/branches";
+import { useAuth } from "@/store/auth";
 
 async function fetchSales() {
   const r = await fetch("/api/sales", { cache: "no-store" });
@@ -11,8 +13,9 @@ async function fetchSales() {
 
 export default function DashboardPage() {
   const { data } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
+  const user = useAuth((state) => state.user);
 
-  const items = (data?.items ?? []) as any[];
+  const items = filterSalesByBranch((data?.items ?? []) as any[], user?.role === "ADMİN" ? null : user?.branchId ?? null);
   const today = new Date().toDateString();
 
   const todays = items.filter((s) => new Date(s.createdAt).toDateString() === today);

@@ -6,6 +6,7 @@ import ProductGrid from "@/components/sales/product-grid";
 import CartPanel from "@/components/sales/cart-panel";
 import { useCart } from "@/store/cart";
 import { Product } from "@/lib/types";
+import { getBranchStock } from "@/lib/branches";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/store/auth";
 
@@ -20,6 +21,7 @@ export default function QuickSalesPage() {
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const products: Product[] = data?.items ?? [];
   const user = useAuth((state) => state.user);
+  const branchId = user?.branchId ?? null;
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
   const [mode, setMode] = useState<"MANUAL" | "QR">("MANUAL");
   const [scanValue, setScanValue] = useState("");
@@ -32,23 +34,28 @@ export default function QuickSalesPage() {
   const frameRef = useRef<number | null>(null);
   const lastCameraScanRef = useRef<{ code: string; at: number } | null>(null);
 
+  const branchProducts = useMemo(
+    () => products.map((p) => ({ ...p, stockOnHand: getBranchStock(p, branchId) })),
+    [products, branchId]
+  );
+
   const categories = useMemo(() => {
     const unique = new Set(
-      products.map((product) => product.category?.trim()).filter((category): category is string => Boolean(category)),
+      branchProducts.map((product) => product.category?.trim()).filter((category): category is string => Boolean(category)),
     );
     const list = Array.from(unique).sort((a, b) => a.localeCompare(b, "tr"));
-    if (products.some((product) => !product.category?.trim())) {
+    if (branchProducts.some((product) => !product.category?.trim())) {
       list.push("Diğer");
     }
     return ["Tümü", ...list];
-  }, [products]);
+  }, [branchProducts]);
 
   const filteredProducts = useMemo(() => {
     if (selectedCategory === "Tümü") {
-      return products;
+      return branchProducts;
     }
-    return products.filter((product) => (product.category?.trim() ?? "Diğer") === selectedCategory);
-  }, [products, selectedCategory]);
+    return branchProducts.filter((product) => (product.category?.trim() ?? "Diğer") === selectedCategory);
+  }, [branchProducts, selectedCategory]);
 
   async function checkout() {
     const clientRequestId = uuidv4();
@@ -60,6 +67,7 @@ export default function QuickSalesPage() {
         name: user?.name ?? "Demo",
         role: user?.role ?? "PERSONEL",
       },
+      branchId,
       paymentType: cart.paymentType,
       posFeeType: cart.posFeeType,
       posFeeValue: cart.posFeeValue,
@@ -98,7 +106,7 @@ export default function QuickSalesPage() {
         }
         lastCameraScanRef.current = { code, at: Date.now() };
       }
-      const found = products.find((p) => p.qrCode?.toLowerCase() === code.toLowerCase());
+      const found = branchProducts.find((p) => p.qrCode?.toLowerCase() === code.toLowerCase());
       if (!found) {
         setScanMessage("QR eşleşmedi. Ürün bulunamadı.");
         return;
@@ -109,7 +117,7 @@ export default function QuickSalesPage() {
       );
       setScanMessage(`${found.name} sepete eklendi.`);
     },
-    [cart, products],
+    [cart, branchProducts],
   );
 
   function handleScanSubmit() {

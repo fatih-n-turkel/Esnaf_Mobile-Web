@@ -1,5 +1,11 @@
 export type Role = "ADMİN" | "MÜDÜR" | "PERSONEL";
 
+export type Branch = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
 export type DemoUser = {
   id: string;
   username: string;
@@ -7,6 +13,7 @@ export type DemoUser = {
   name: string;
   role: Role;
   landingPath: string;
+  branchId?: string | null;
 };
 
 export type PaymentType = "CASH" | "CARD";
@@ -21,6 +28,7 @@ export type Product = {
   vatRate: number;     // 0.01 = %1, 0.20 = %20
   criticalStockLevel: number;
   stockOnHand: number;
+  stockByBranch?: Record<string, number>;
   qrCode?: string;
   isActive: boolean;
   updatedAt: string;
@@ -41,6 +49,7 @@ export type Sale = {
   clientRequestId: string; // idempotency
   createdAt: string;
   createdBy: { id: string; name: string; role: Role };
+  branchId?: string | null;
 
   paymentType: PaymentType;
   posFeeType: PosFeeType;

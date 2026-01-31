@@ -65,7 +65,16 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-500">Gün özeti + hızlı aksiyon.</p>
       </div>
 
-      <KpiCards revenue={revenue} profit={profit} loss={loss} salesCount={todays.length} />
+      {isPersonnel ? (
+        <div className="grid grid-cols-1 gap-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Bugün Satış</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">{todays.length}</div>
+          </div>
+        </div>
+      ) : (
+        <KpiCards revenue={revenue} profit={profit} loss={loss} salesCount={todays.length} />
+      )}
 
       <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm space-y-4">
         <div className="text-sm font-semibold text-slate-900">Gün Özeti (Bayi Bazlı)</div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/store/auth";
 import { getDemoUsers, roleLabel, saveDemoUsers } from "@/lib/auth";
 import { Branch, DemoUser, Role } from "@/lib/types";
@@ -17,6 +16,7 @@ export default function AdminPage() {
     username: "",
     role: "PERSONEL" as Role,
     branchId: "",
+    managerId: "",
   });
 
   const canManage = useMemo(() => user?.role === "ADMİN", [user?.role]);
@@ -42,6 +42,8 @@ export default function AdminPage() {
     }
   }, [branches, form.branchId, form.role]);
 
+  const managers = useMemo(() => users.filter((u) => u.role === "MÜDÜR"), [users]);
+
   if (!canManage) {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece admin kullanıcılar içindir.</div>;
   }
@@ -60,7 +62,7 @@ export default function AdminPage() {
             Admin dışındaki kullanıcılar yetki yönetimini göremez veya düzenleyemez.
           </p>
         </div>
-        <div className="grid gap-2 md:grid-cols-[1.4fr_1fr_0.6fr_0.8fr_auto]">
+        <div className="grid gap-2 md:grid-cols-[1.4fr_1fr_0.6fr_0.8fr_0.8fr_auto]">
           <input
             className="rounded-lg border px-3 py-2 text-sm"
             placeholder="Ad Soyad"
@@ -95,6 +97,19 @@ export default function AdminPage() {
               </option>
             ))}
           </select>
+          <select
+            className="rounded-lg border px-3 py-2 text-sm"
+            value={form.managerId}
+            onChange={(event) => setForm({ ...form, managerId: event.target.value })}
+            disabled={form.role !== "PERSONEL"}
+          >
+            <option value="">Müdür seçin</option>
+            {managers.map((manager) => (
+              <option key={manager.id} value={manager.id}>
+                {manager.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
@@ -109,11 +124,12 @@ export default function AdminPage() {
                 role: form.role,
                 landingPath: form.role === "ADMİN" ? "/admin" : form.role === "MÜDÜR" ? "/manager" : "/personnel",
                 branchId: form.role === "ADMİN" ? null : form.branchId,
+                managerId: form.role === "PERSONEL" ? form.managerId || null : null,
               };
               const next = [created, ...users];
               const saved = await saveDemoUsers(next);
               setUsers(saved);
-              setForm({ name: "", username: "", role: "PERSONEL", branchId: "" });
+              setForm({ name: "", username: "", role: "PERSONEL", branchId: "", managerId: "" });
             }}
           >
             Yetkili Ekle
@@ -129,6 +145,11 @@ export default function AdminPage() {
                 {demo.role !== "ADMİN" && (
                   <div className="text-xs text-zinc-500">{branchLabel(branches, demo.branchId)}</div>
                 )}
+                {demo.role === "PERSONEL" && demo.managerId && (
+                  <div className="text-[11px] text-zinc-400">
+                    Müdür: {users.find((u) => u.id === demo.managerId)?.name ?? "-"}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -142,6 +163,7 @@ export default function AdminPage() {
                             role: nextRole,
                             landingPath: nextRole === "ADMİN" ? "/admin" : nextRole === "MÜDÜR" ? "/manager" : "/personnel",
                             branchId: nextRole === "ADMİN" ? null : u.branchId ?? branches[0]?.id ?? null,
+                            managerId: nextRole === "PERSONEL" ? u.managerId ?? null : null,
                           }
                         : u
                     );
@@ -178,6 +200,32 @@ export default function AdminPage() {
                     {branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {demo.role === "PERSONEL" && (
+                  <select
+                    value={demo.managerId ?? ""}
+                    onChange={async (event) => {
+                      const nextManagerId = event.target.value;
+                      const next = users.map((u) =>
+                        u.id === demo.id
+                          ? {
+                              ...u,
+                              managerId: nextManagerId || null,
+                            }
+                          : u
+                      );
+                      const saved = await saveDemoUsers(next);
+                      setUsers(saved);
+                    }}
+                    className="rounded-lg border px-2 py-1 text-xs"
+                  >
+                    <option value="">Müdür seç</option>
+                    {managers.map((manager) => (
+                      <option key={manager.id} value={manager.id}>
+                        {manager.name}
                       </option>
                     ))}
                   </select>
@@ -245,18 +293,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-2">
-        <div className="font-medium">Müdür Analizi</div>
-        <p className="text-xs text-zinc-500">
-          Müdürlerin görebildiği performans, stok ve satış analizleri burada özetlenir.
-        </p>
-        <Link
-          href="/analysis"
-          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white"
-        >
-          Müdür Analizine Git
-        </Link>
-      </div>
     </div>
   );
 }

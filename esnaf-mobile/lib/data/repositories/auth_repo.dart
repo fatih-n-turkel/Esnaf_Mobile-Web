@@ -33,6 +33,7 @@ class AuthRepo extends ChangeNotifier {
       password: 'cenk',
       role: 'staff',
       branchId: defaultBranchMainId,
+      managerId: 'mehmet',
     ),
   ];
 
@@ -101,6 +102,7 @@ class AuthRepo extends ChangeNotifier {
     required String role,
     String? password,
     String? branchId,
+    String? managerId,
   }) async {
     final box = HiveBoxes.box(HiveBoxes.users);
     final normalized = username.trim().toLowerCase();
@@ -112,6 +114,7 @@ class AuthRepo extends ChangeNotifier {
       password: password?.trim() ?? existing?['password'] as String? ?? '1234',
       role: role,
       branchId: branchId ?? existing?['branchId'] as String? ?? '',
+      managerId: role == 'staff' ? (managerId ?? existing?['managerId'] as String?) : null,
     );
     await box.put(normalized, data.toMap());
     notifyListeners();
@@ -143,6 +146,7 @@ class AuthUser {
     required this.password,
     required this.role,
     required this.branchId,
+    this.managerId,
   });
   final String id;
   final String name;
@@ -150,6 +154,7 @@ class AuthUser {
   final String password;
   final String role;
   final String branchId;
+  final String? managerId;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -158,6 +163,7 @@ class AuthUser {
         'password': password,
         'role': role,
         'branchId': branchId,
+        'managerId': managerId,
       };
 
   factory AuthUser.fromMap(Map m) => AuthUser(
@@ -167,5 +173,6 @@ class AuthUser {
         password: (m['password'] ?? '') as String,
         role: (m['role'] ?? 'staff') as String,
         branchId: (m['branchId'] ?? '') as String,
+        managerId: m['managerId'] as String?,
       );
 }

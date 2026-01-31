@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { Branch, Category, Product, Sale, Settings, DemoUser } from "./types";
+import { Branch, Category, Product, Sale, Settings, DemoUser, Notification } from "./types";
 
 type DatabaseFile = {
   products: Product[];
@@ -10,6 +10,7 @@ type DatabaseFile = {
   sales: Sale[];
   users: DemoUser[];
   branches: Branch[];
+  notifications: Notification[];
 };
 
 const now = () => new Date().toISOString();
@@ -33,9 +34,13 @@ function readDatabase(): DatabaseFile {
   const raw = fs.readFileSync(databaseFile, "utf8");
   try {
     const parsed = JSON.parse(raw) as DatabaseFile;
-    if (!parsed.branches) {
+    if (!parsed.branches || !parsed.notifications) {
       const seed = buildSeedDatabase();
-      const merged = { ...parsed, branches: seed.branches };
+      const merged = {
+        ...parsed,
+        branches: parsed.branches ?? seed.branches,
+        notifications: parsed.notifications ?? seed.notifications,
+      };
       writeDatabase(merged);
       return merged;
     }
@@ -152,10 +157,30 @@ function buildSeedDatabase(): DatabaseFile {
       role: "PERSONEL",
       landingPath: "/personnel",
       branchId: branchMainId,
+      managerId: "user-manager",
     },
   ];
 
   const sales = buildSeedSales(seededProducts, users, branches);
+  const notifications: Notification[] = [
+    {
+      id: randomUUID(),
+      title: "Kritik stok uyarısı",
+      message: "Merkez Şube için kritik stok seviyesi görüldü.",
+      createdAt: now(),
+      readAt: null,
+      scope: "BRANCH",
+      branchId: branchMainId,
+    },
+    {
+      id: randomUUID(),
+      title: "Gün sonu satış özeti",
+      message: "Bugünkü satışlar raporlandı. Analiz sayfasına göz atın.",
+      createdAt: now(),
+      readAt: null,
+      scope: "GLOBAL",
+    },
+  ];
 
   return {
     products: seededProducts,
@@ -164,6 +189,7 @@ function buildSeedDatabase(): DatabaseFile {
     sales,
     users,
     branches,
+    notifications,
   };
 }
 
@@ -329,6 +355,15 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
   }
 
   db.sales.unshift(created);
+  db.notifications.unshift({
+    id: randomUUID(),
+    title: "Yeni satış oluşturuldu",
+    message: `${created.createdBy?.name ?? "Kullanıcı"} yeni bir satış yaptı.`,
+    createdAt: now(),
+    readAt: null,
+    scope: "BRANCH",
+    branchId: created.branchId ?? null,
+  });
   writeDatabase(db);
   return created;
 }
@@ -361,4 +396,31 @@ export function addBranch(name: string) {
   db.branches.unshift(created);
   writeDatabase(db);
   return created;
+}
+
+export function listNotifications() {
+  const db = readDatabase();
+  return db.notifications.slice();
+}
+
+export function addNotification(input: Omit<Notification, "id" | "createdAt">) {
+  const db = readDatabase();
+  const created: Notification = {
+    ...input,
+    id: randomUUID(),
+    createdAt: now(),
+  };
+  db.notifications.unshift(created);
+  writeDatabase(db);
+  return created;
+}
+
+export function markNotificationsRead(ids: string[]) {
+  const db = readDatabase();
+  const nowAt = now();
+  db.notifications = db.notifications.map((n) =>
+    ids.includes(n.id) ? { ...n, readAt: n.readAt ?? nowAt } : n
+  );
+  writeDatabase(db);
+  return db.notifications;
 }

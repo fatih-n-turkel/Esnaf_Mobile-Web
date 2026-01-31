@@ -34,12 +34,16 @@ function readDatabase(): DatabaseFile {
   const raw = fs.readFileSync(databaseFile, "utf8");
   try {
     const parsed = JSON.parse(raw) as DatabaseFile;
-    if (!parsed.branches || !parsed.notifications) {
+    if (!parsed.branches || !parsed.notifications || !parsed.settings?.posFeeType) {
       const seed = buildSeedDatabase();
       const merged = {
         ...parsed,
         branches: parsed.branches ?? seed.branches,
         notifications: parsed.notifications ?? seed.notifications,
+        settings: {
+          ...seed.settings,
+          ...parsed.settings,
+        },
       };
       writeDatabase(merged);
       return merged;
@@ -137,7 +141,7 @@ function buildSeedDatabase(): DatabaseFile {
       password: "fatih",
       name: "Fatih",
       role: "ADMİN",
-      landingPath: "/admin",
+      landingPath: "/dashboard",
       branchId: null,
     },
     {
@@ -146,7 +150,7 @@ function buildSeedDatabase(): DatabaseFile {
       password: "mehmet",
       name: "Mehmet",
       role: "MÜDÜR",
-      landingPath: "/manager",
+      landingPath: "/dashboard",
       branchId: branchMainId,
     },
     {
@@ -185,7 +189,7 @@ function buildSeedDatabase(): DatabaseFile {
   return {
     products: seededProducts,
     categories,
-    settings: { defaultVatRate: 0.2 },
+    settings: { defaultVatRate: 0.2, posFeeType: "RATE", posFeeValue: 0.02 },
     sales,
     users,
     branches,
@@ -298,6 +302,79 @@ export function updateProductMeta(
     product.category = nextCategory || undefined;
     if (nextCategory) {
       ensureCategory(db, nextCategory);
+    }
+  }
+  product.updatedAt = now();
+  writeDatabase(db);
+  return product;
+}
+
+export function updateProductDetails(
+  productId: string,
+  updates: {
+    qrCode?: string;
+    vatRate?: number;
+    category?: string | null;
+    salePrice?: number;
+    costPrice?: number;
+    criticalStockLevel?: number;
+    stockOnHand?: number;
+    branchId?: string | null;
+  }
+) {
+  const db = readDatabase();
+  const product = db.products.find((p) => p.id === productId);
+  if (!product) return null;
+  const nextCode = updates.qrCode?.trim() || product.qrCode || makeQrCode(product.name);
+  product.qrCode = nextCode;
+  if (typeof updates.vatRate === "number" && !Number.isNaN(updates.vatRate)) {
+    product.vatRate = updates.vatRate;
+  }
+  if (updates.category !== undefined) {
+    const nextCategory = updates.category ? updates.category.trim() : "";
+    product.category = nextCategory || undefined;
+    if (nextCategory) {
+      ensureCategory(db, nextCategory);
+    }
+  }
+  if (typeof updates.salePrice === "number" && !Number.isNaN(updates.salePrice)) {
+    product.salePrice = updates.salePrice;
+  }
+  if (typeof updates.costPrice === "number" && !Number.isNaN(updates.costPrice)) {
+    product.costPrice = updates.costPrice;
+  }
+  if (typeof updates.criticalStockLevel === "number" && !Number.isNaN(updates.criticalStockLevel)) {
+    product.criticalStockLevel = updates.criticalStockLevel;
+  }
+  if (typeof updates.stockOnHand === "number" && !Number.isNaN(updates.stockOnHand)) {
+    if (updates.branchId) {
+      const nextStockByBranch = { ...(product.stockByBranch ?? {}) };
+      nextStockByBranch[updates.branchId] = updates.stockOnHand;
+      product.stockByBranch = nextStockByBranch;
+      const totals = Object.values(nextStockByBranch);
+      product.stockOnHand = totals.reduce((sum, value) => sum + value, 0);
+    } else if (product.stockByBranch && Object.keys(product.stockByBranch).length) {
+      const entries = Object.entries(product.stockByBranch);
+      const currentTotal = entries.reduce((sum, [, value]) => sum + value, 0);
+      if (currentTotal > 0) {
+        let remaining = updates.stockOnHand;
+        const nextStockByBranch: Record<string, number> = {};
+        entries.forEach(([branchId, value], index) => {
+          const isLast = index === entries.length - 1;
+          const nextValue = isLast ? remaining : Math.round((value / currentTotal) * updates.stockOnHand);
+          nextStockByBranch[branchId] = nextValue;
+          remaining -= nextValue;
+        });
+        product.stockByBranch = nextStockByBranch;
+      } else {
+        const [branchId] = entries[0] ?? [];
+        if (branchId) {
+          product.stockByBranch = { [branchId]: updates.stockOnHand };
+        }
+      }
+      product.stockOnHand = updates.stockOnHand;
+    } else {
+      product.stockOnHand = updates.stockOnHand;
     }
   }
   product.updatedAt = now();

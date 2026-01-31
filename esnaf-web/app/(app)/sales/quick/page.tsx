@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ProductGrid from "@/components/sales/product-grid";
 import CartPanel from "@/components/sales/cart-panel";
 import { useCart } from "@/store/cart";
-import { Branch, Product } from "@/lib/types";
+import { Branch, Product, Settings } from "@/lib/types";
 import { getBranchStock } from "@/lib/branches";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/store/auth";
@@ -20,13 +20,20 @@ async function fetchBranches() {
   return r.json();
 }
 
+async function fetchSettings() {
+  const r = await fetch("/api/settings", { cache: "no-store" });
+  return r.json();
+}
+
 export default function QuickSalesPage() {
   const qc = useQueryClient();
   const cart = useCart();
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
+  const { data: settingsData } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const products: Product[] = data?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
+  const settings: Settings | undefined = settingsData?.item;
   const user = useAuth((state) => state.user);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const branchId = user?.role === "ADMİN" ? selectedBranchId : user?.branchId ?? null;
@@ -41,12 +48,20 @@ export default function QuickSalesPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastCameraScanRef = useRef<{ code: string; at: number } | null>(null);
+  const posFeeInitRef = useRef(false);
 
   useEffect(() => {
     if (user?.role === "ADMİN" && !selectedBranchId && branches.length > 0) {
       setSelectedBranchId(branches[0].id);
     }
   }, [branches, selectedBranchId, user?.role]);
+
+  useEffect(() => {
+    if (!settings || posFeeInitRef.current) return;
+    cart.setPosFeeType(settings.posFeeType);
+    cart.setPosFeeValue(settings.posFeeValue);
+    posFeeInitRef.current = true;
+  }, [cart, settings]);
 
   const branchProducts = useMemo(
     () => products.map((p) => ({ ...p, stockOnHand: getBranchStock(p, branchId) })),

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Category, Product, Settings } from "@/lib/types";
+import { Category, Product } from "@/lib/types";
 import { useAuth } from "@/store/auth";
 
 type CategoryEdit = {
@@ -21,29 +21,22 @@ async function fetchCategories() {
   return r.json();
 }
 
-async function fetchSettings() {
-  const r = await fetch("/api/settings", { cache: "no-store" });
-  return r.json();
-}
-
 export default function ProductsPage() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const { data: categoryData } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
-  const { data: settingsData } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const user = useAuth((state) => state.user);
   const canManage = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   const products: Product[] = data?.items ?? [];
   const categories: Category[] = categoryData?.items ?? [];
-  const settings: Settings | undefined = settingsData?.item;
 
   const [showForm, setShowForm] = useState(false);
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [editBusy, setEditBusy] = useState(false);
-  const [editForm, setEditForm] = useState({ qrCode: "", vatRate: "" });
+  const [editForm, setEditForm] = useState({ qrCode: "" });
   const [selectedCategory, setSelectedCategory] = useState<string | null>("__ALL__");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryEdits, setCategoryEdits] = useState<CategoryEdit[]>([]);
@@ -55,11 +48,8 @@ export default function ProductsPage() {
     costPrice: "",
     stockOnHand: "",
     criticalStockLevel: "",
-    vatRate: "",
     qrCode: "",
   });
-
-  const vatDefault = useMemo(() => (settings?.defaultVatRate ?? 0.2) * 100, [settings]);
 
   async function addProduct() {
     const payload = {
@@ -69,7 +59,6 @@ export default function ProductsPage() {
       costPrice: Number(form.costPrice),
       stockOnHand: Number(form.stockOnHand),
       criticalStockLevel: Number(form.criticalStockLevel || 0),
-      vatRate: form.vatRate ? Number(form.vatRate) / 100 : undefined,
       qrCode: form.qrCode || undefined,
     };
 
@@ -92,7 +81,6 @@ export default function ProductsPage() {
       costPrice: "",
       stockOnHand: "",
       criticalStockLevel: "",
-      vatRate: "",
       qrCode: "",
     });
 
@@ -196,7 +184,6 @@ export default function ProductsPage() {
     setEditProduct(product);
     setEditForm({
       qrCode: product.qrCode ?? "",
-      vatRate: (product.vatRate * 100).toFixed(0),
     });
   }
 
@@ -205,7 +192,6 @@ export default function ProductsPage() {
     setEditBusy(true);
     const payload = {
       qrCode: editForm.qrCode || undefined,
-      vatRate: editForm.vatRate ? Number(editForm.vatRate) / 100 : undefined,
     };
     const r = await fetch(`/api/products/${editProduct.id}`, {
       method: "PUT",
@@ -407,7 +393,6 @@ export default function ProductsPage() {
                 <div className="text-xs text-zinc-500">{p.category ?? "Kategori yok"}</div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-xs text-zinc-500">KDV {(p.vatRate * 100).toFixed(0)}%</div>
                 <span
                   className={[
                     "text-xs rounded-full px-2 py-1",
@@ -499,12 +484,6 @@ export default function ProductsPage() {
                   onChange={(event) => setForm({ ...form, criticalStockLevel: event.target.value })}
                 />
               </div>
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder={`KDV oranı (varsayılan %${vatDefault.toFixed(0)})`}
-                value={form.vatRate}
-                onChange={(event) => setForm({ ...form, vatRate: event.target.value })}
-              />
               <div className="grid gap-1">
                 <input
                   className="rounded-lg border px-3 py-2 text-sm"
@@ -700,12 +679,6 @@ export default function ProductsPage() {
                 placeholder="QR kodu"
                 value={editForm.qrCode}
                 onChange={(event) => setEditForm({ ...editForm, qrCode: event.target.value })}
-              />
-              <input
-                className="rounded-lg border px-3 py-2 text-sm"
-                placeholder="KDV oranı (%)"
-                value={editForm.vatRate}
-                onChange={(event) => setEditForm({ ...editForm, vatRate: event.target.value })}
               />
               <div className="flex flex-wrap gap-2">
                 <button

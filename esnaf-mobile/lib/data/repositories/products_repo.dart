@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../local/hive_boxes.dart';
 import '../models/models.dart';
 import 'branches_repo.dart';
+import 'notifications_repo.dart';
 import 'settings_repo.dart';
 
 class ProductsRepo {
@@ -119,6 +120,42 @@ class ProductsRepo {
     await box.put(p.id, p.toMap());
   }
 
+  Future<void> renameCategory(String fromName, String toName) async {
+    final trimmed = toName.trim();
+    if (trimmed.isEmpty) return;
+    final box = HiveBoxes.box(HiveBoxes.products);
+    for (final entry in box.values) {
+      final p = Product.fromMap(entry);
+      if (p.category == fromName) {
+        await box.put(
+          p.id,
+          p.copyWith(category: trimmed, updatedAt: DateTime.now().millisecondsSinceEpoch).toMap(),
+        );
+      }
+    }
+  }
+
+  Future<void> setCategoryAssignments(String categoryName, Set<String> productIds) async {
+    final box = HiveBoxes.box(HiveBoxes.products);
+    for (final entry in box.values) {
+      final p = Product.fromMap(entry);
+      final shouldHave = productIds.contains(p.id);
+      if (shouldHave && p.category != categoryName) {
+        await box.put(
+          p.id,
+          p.copyWith(category: categoryName, updatedAt: DateTime.now().millisecondsSinceEpoch).toMap(),
+        );
+        continue;
+      }
+      if (!shouldHave && p.category == categoryName) {
+        await box.put(
+          p.id,
+          p.copyWith(category: '', updatedAt: DateTime.now().millisecondsSinceEpoch).toMap(),
+        );
+      }
+    }
+  }
+
   Future<void> adjustStock(String productId, double delta, {String? branchId}) async {
     final p = getById(productId);
     if (p == null) return;
@@ -128,7 +165,9 @@ class ProductsRepo {
     }
     final nextByBranch = Map<String, double>.from(p.stockByBranch);
     final current = nextByBranch[branchId] ?? 0;
-    nextByBranch[branchId] = current + delta;
+    final rawNext = current + delta;
+    final next = rawNext < 0 ? 0 : rawNext;
+    nextByBranch[branchId] = next;
     final total = nextByBranch.values.fold<double>(0, (sum, value) => sum + value);
     await upsert(
       p.copyWith(
@@ -137,6 +176,20 @@ class ProductsRepo {
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       ),
     );
+    if (current > 0 && next <= 0) {
+      final branches = ref.read(branchesRepoProvider).list();
+      final branchName = branches.firstWhere((b) => b.id == branchId, orElse: () => Branch(id: branchId, name: 'Şube', createdAt: 0)).name;
+      ref.read(notificationsRepoProvider).add(
+            AppNotification(
+              id: newId(),
+              title: 'Stok tükendi',
+              message: '${p.name} ürünü $branchName için tükendi.',
+              createdAt: DateTime.now().millisecondsSinceEpoch,
+              scope: NotificationScope.branch,
+              branchId: branchId,
+            ),
+          );
+    }
   }
 }
 

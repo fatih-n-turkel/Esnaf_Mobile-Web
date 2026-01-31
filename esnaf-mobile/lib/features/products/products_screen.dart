@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/auth_repo.dart';
 import '../../data/models/models.dart';
+import 'category_edit_screen.dart';
 import 'product_edit_screen.dart';
 
 final _pQuery = StateProvider<String>((ref) => '');
 final _onlyCritical = StateProvider<bool>((ref) => false);
+final _selectedCategory = StateProvider<String?>((ref) => null);
 
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
@@ -20,9 +22,11 @@ class ProductsScreen extends ConsumerWidget {
     final role = ref.watch(authRepoProvider).getRole();
     final query = ref.watch(_pQuery);
     final onlyCritical = ref.watch(_onlyCritical);
+    final selectedCategory = ref.watch(_selectedCategory);
 
     final repo = ref.watch(productsRepoProvider);
-    final products = repo.list(query: query, onlyCritical: onlyCritical);
+    final products = repo.list(query: query, onlyCritical: onlyCritical, category: selectedCategory);
+    final categories = repo.categories();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -54,7 +58,42 @@ class ProductsScreen extends ConsumerWidget {
                   icon: const Icon(Icons.add),
                   label: const Text('Ürün'),
                 ),
+              if (_canEdit(role)) ...[
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute(builder: (_) => const CategoryEditScreen()),
+                    );
+                    ref.invalidate(productsSeedProvider);
+                  },
+                  icon: const Icon(Icons.category),
+                  label: const Text('Kategoriler'),
+                ),
+              ],
             ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                FilterChip(
+                  label: const Text('Tümü'),
+                  selected: selectedCategory == null,
+                  onSelected: (_) => ref.read(_selectedCategory.notifier).state = null,
+                ),
+                const SizedBox(width: 8),
+                ...categories.map((c) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(c),
+                        selected: selectedCategory == c,
+                        onSelected: (_) => ref.read(_selectedCategory.notifier).state = c,
+                      ),
+                    )),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(

@@ -4,9 +4,10 @@ import { updateProductMeta } from "@/lib/mock-db";
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const body = await req.json().catch(() => ({}));
   const qrCode = body?.qrCode ? String(body.qrCode).trim() : undefined;
+  const category = body?.category === null ? null : body?.category ? String(body.category).trim() : undefined;
   const vatRate =
     body?.vatRate === null || body?.vatRate === undefined ? undefined : Number(body.vatRate);
-  const updated = updateProductMeta(params.id, { qrCode, vatRate });
+  const updated = updateProductMeta(params.id, { qrCode, vatRate, category });
 
   if (!updated) {
     return NextResponse.json({ error: "Ürün bulunamadı." }, { status: 404 });

@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Category, Product, Settings } from "@/lib/types";
 
+type CategoryEdit = {
+  id: string;
+  name: string;
+  productIds: string[];
+};
+
 async function fetchProducts() {
   const r = await fetch("/api/products", { cache: "no-store" });
   return r.json();
@@ -35,6 +41,10 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editForm, setEditForm] = useState({ qrCode: "", vatRate: "" });
+  const [selectedCategory, setSelectedCategory] = useState<string | null>("__ALL__");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categoryEdits, setCategoryEdits] = useState<CategoryEdit[]>([]);
+  const [categoryBusyId, setCategoryBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -102,6 +112,13 @@ export default function ProductsPage() {
       const err = await r.json().catch(() => ({}));
       alert(err?.error ?? "Kategori eklenemedi.");
       return;
+    }
+    const res = await r.json().catch(() => ({}));
+    if (showCategoryModal && res?.item) {
+      setCategoryEdits((prev) => [
+        ...prev,
+        { id: res.item.id, name: res.item.name, productIds: [] },
+      ]);
     }
     await qc.invalidateQueries({ queryKey: ["categories"] });
   }
@@ -203,6 +220,79 @@ export default function ProductsPage() {
     setEditBusy(false);
   }
 
+  const filteredProducts = useMemo(() => {
+    if (!selectedCategory) return products;
+    if (selectedCategory === "__ALL__") return products;
+    if (selectedCategory === "__NONE__") return products.filter((p) => !p.category);
+    return products.filter((p) => p.category === selectedCategory);
+  }, [products, selectedCategory]);
+
+  function openCategoryModal() {
+    setCategoryEdits(
+      categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        productIds: products.filter((p) => p.category === category.name).map((p) => p.id),
+      }))
+    );
+    setShowCategoryModal(true);
+  }
+
+  async function saveCategory(edit: CategoryEdit) {
+    setCategoryBusyId(edit.id);
+    const original = categories.find((c) => c.id === edit.id);
+    if (!original) {
+      setCategoryBusyId(null);
+      return;
+    }
+    if (!edit.name.trim()) {
+      alert("Kategori adı zorunlu.");
+      setCategoryBusyId(null);
+      return;
+    }
+
+    if (edit.name.trim() && edit.name !== original.name) {
+      const r = await fetch(`/api/categories/${edit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: edit.name }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert(err?.error ?? "Kategori güncellenemedi.");
+        setCategoryBusyId(null);
+        return;
+      }
+    }
+
+    const nextName = edit.name.trim();
+    const updateCalls = products.map(async (product) => {
+      const shouldHave = edit.productIds.includes(product.id);
+      if (shouldHave && product.category !== nextName) {
+        await fetch(`/api/products/${product.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: nextName }),
+        });
+        return;
+      }
+      if (!shouldHave && product.category === nextName) {
+        await fetch(`/api/products/${product.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: null }),
+        });
+      }
+    });
+
+    await Promise.all(updateCalls);
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["products"] }),
+      qc.invalidateQueries({ queryKey: ["categories"] }),
+    ]);
+    setCategoryBusyId(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -210,19 +300,65 @@ export default function ProductsPage() {
           <h1 className="text-xl font-semibold">Ürünler</h1>
           <p className="text-sm text-zinc-500">Ürün adları, kategori yönetimi ve QR etiketleri.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm(true)}
-          className="rounded-xl bg-zinc-900 text-white px-4 py-2 text-sm font-semibold"
-        >
-          Yeni Ürün Ekle
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="rounded-xl bg-zinc-900 text-white px-4 py-2 text-sm font-semibold"
+          >
+            Yeni Ürün Ekle
+          </button>
+          <button
+            type="button"
+            onClick={openCategoryModal}
+            className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Kategorileri Düzenle
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="font-medium mb-3">Ürün Listesi</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="font-medium">Ürün Listesi</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("__ALL__")}
+              className={[
+                "rounded-full border px-3 py-1",
+                selectedCategory === "__ALL__" ? "bg-zinc-900 text-white border-zinc-900" : "hover:bg-zinc-50",
+              ].join(" ")}
+            >
+              Tümü
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setSelectedCategory(category.name)}
+                className={[
+                  "rounded-full border px-3 py-1",
+                  selectedCategory === category.name ? "bg-zinc-900 text-white border-zinc-900" : "hover:bg-zinc-50",
+                ].join(" ")}
+              >
+                {category.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("__NONE__")}
+              className={[
+                "rounded-full border px-3 py-1",
+                selectedCategory === "__NONE__" ? "bg-zinc-900 text-white border-zinc-900" : "hover:bg-zinc-50",
+              ].join(" ")}
+            >
+              Kategori yok
+            </button>
+          </div>
+        </div>
         <div className="space-y-2">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm">
               <div>
                 <div className="font-medium">{p.name}</div>
@@ -257,25 +393,7 @@ export default function ProductsPage() {
               </div>
             </div>
           ))}
-          {!products.length && <div className="text-sm text-zinc-500">Henüz ürün yok.</div>}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="font-medium">Kategoriler</div>
-            <div className="text-xs text-zinc-500">Ürünler için kategori ekleyin.</div>
-          </div>
-          <CategoryAdder onAdd={addCategory} />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <span key={category.id} className="rounded-full border px-3 py-1 text-xs">
-              {category.name}
-            </span>
-          ))}
-          {!categories.length && <span className="text-xs text-zinc-500">Kategori yok.</span>}
+          {!filteredProducts.length && <div className="text-sm text-zinc-500">Henüz ürün yok.</div>}
         </div>
       </div>
 
@@ -363,6 +481,86 @@ export default function ProductsPage() {
               >
                 Ürünü Kaydet
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-medium">Kategorileri Düzenle</div>
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                Kapat
+              </button>
+            </div>
+            <div className="grid gap-4">
+              <div>
+                <div className="text-sm font-medium mb-2">Yeni Kategori</div>
+                <CategoryAdder onAdd={addCategory} />
+              </div>
+              <div className="grid gap-4">
+                {categoryEdits.map((edit) => (
+                  <div key={edit.id} className="rounded-xl border p-3">
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                      <input
+                        className="rounded-lg border px-3 py-2 text-sm w-full sm:w-64"
+                        value={edit.name}
+                        onChange={(event) =>
+                          setCategoryEdits((prev) =>
+                            prev.map((item) => (item.id === edit.id ? { ...item, name: event.target.value } : item))
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => saveCategory(edit)}
+                        className="rounded-lg bg-zinc-900 text-white px-3 py-2 text-xs font-semibold"
+                        disabled={categoryBusyId === edit.id}
+                      >
+                        {categoryBusyId === edit.id ? "Kaydediliyor..." : "Kaydet"}
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs">
+                      <div className="text-zinc-500">Ürünler</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {products.map((product) => {
+                          const checked = edit.productIds.includes(product.id);
+                          return (
+                            <label key={product.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setCategoryEdits((prev) =>
+                                    prev.map((item) => {
+                                      if (item.id !== edit.id) return item;
+                                      const set = new Set(item.productIds);
+                                      if (set.has(product.id)) {
+                                        set.delete(product.id);
+                                      } else {
+                                        set.add(product.id);
+                                      }
+                                      return { ...item, productIds: Array.from(set) };
+                                    })
+                                  )
+                                }
+                              />
+                              <span>{product.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!categoryEdits.length && <div className="text-sm text-zinc-500">Kategori yok.</div>}
+              </div>
             </div>
           </div>
         </div>

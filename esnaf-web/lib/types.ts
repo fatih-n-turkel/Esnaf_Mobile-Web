@@ -1,5 +1,14 @@
 export type Role = "ADMİN" | "MÜDÜR" | "PERSONEL";
 
+export type DemoUser = {
+  id: string;
+  username: string;
+  password: string;
+  name: string;
+  role: Role;
+  landingPath: string;
+};
+
 export type PaymentType = "CASH" | "CARD";
 export type PosFeeType = "RATE" | "FIXED";
 

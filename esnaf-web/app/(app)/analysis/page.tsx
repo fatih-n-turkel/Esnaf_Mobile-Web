@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsPeriods, calcAnalyticsForPeriod } from "@/lib/analytics";
 import { fmtTRY } from "@/lib/money";
-import { Product, Sale } from "@/lib/types";
+import { DemoUser, Product, Sale } from "@/lib/types";
 import { getDemoUsers } from "@/lib/auth";
 import { useAuth } from "@/store/auth";
 
@@ -22,7 +22,7 @@ export default function AnalysisPage() {
   const { data: salesData } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
   const { data: productData } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const user = useAuth((state) => state.user);
-  const [people, setPeople] = useState(getDemoUsers());
+  const [people, setPeople] = useState<DemoUser[]>([]);
 
   const sales: Sale[] = salesData?.items ?? [];
   const products: Product[] = productData?.items ?? [];
@@ -30,7 +30,13 @@ export default function AnalysisPage() {
   const canSeePersonnel = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   useEffect(() => {
-    setPeople(getDemoUsers());
+    let active = true;
+    getDemoUsers().then((list) => {
+      if (active) setPeople(list);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const personnelUsers = useMemo(

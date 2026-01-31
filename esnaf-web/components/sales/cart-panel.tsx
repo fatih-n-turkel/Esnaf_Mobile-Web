@@ -105,9 +105,13 @@ export default function CartPanel({ onCheckout }: { onCheckout: () => Promise<vo
           <span>POS</span>
           <span>{fmtTRY(totals.posFeeAmount)}</span>
         </div>
-        <div className="text-base flex justify-between border-t pt-2">
+        <div className="text-sm flex justify-between">
           <span>Net Kâr</span>
-          <b>{fmtTRY(totals.netProfit)}</b>
+          <span>{fmtTRY(totals.netProfit)}</span>
+        </div>
+        <div className="text-base flex justify-between border-t pt-2">
+          <span>Toplam</span>
+          <b>{fmtTRY(totals.totalRevenue)}</b>
         </div>
 
         <button

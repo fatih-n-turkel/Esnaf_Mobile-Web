@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings } from "@/lib/types";
+import { DemoUser, Settings } from "@/lib/types";
 import { useAuth } from "@/store/auth";
 
 async function fetchSettings() {
@@ -22,6 +22,10 @@ export default function SettingsPage() {
   const [posFeeValue, setPosFeeValue] = useState(
     settings ? String(settings.posFeeType === "RATE" ? settings.posFeeValue * 100 : settings.posFeeValue) : ""
   );
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -73,6 +77,64 @@ export default function SettingsPage() {
       return;
     }
     await qc.invalidateQueries({ queryKey: ["settings"] });
+  }
+
+  async function savePassword() {
+    if (!user) {
+      alert("Şifre güncellemek için tekrar giriş yapın.");
+      return;
+    }
+    if (!currentPassword.trim()) {
+      alert("Mevcut şifrenizi girin.");
+      return;
+    }
+    const trimmedNew = newPassword.trim();
+    if (trimmedNew.length < 4 || trimmedNew.length > 32) {
+      alert("Yeni şifre 4-32 karakter arasında olmalı.");
+      return;
+    }
+    if (trimmedNew !== confirmPassword.trim()) {
+      alert("Yeni şifreler eşleşmiyor.");
+      return;
+    }
+    setIsSavingPassword(true);
+    const rUsers = await fetch("/api/users", { cache: "no-store" });
+    if (!rUsers.ok) {
+      setIsSavingPassword(false);
+      alert("Kullanıcılar alınamadı.");
+      return;
+    }
+    const usersPayload = await rUsers.json().catch(() => ({}));
+    const users: DemoUser[] = Array.isArray(usersPayload.items) ? usersPayload.items : [];
+    const targetIndex = users.findIndex((item) => item.id === user.id);
+    if (targetIndex === -1) {
+      setIsSavingPassword(false);
+      alert("Kullanıcı bulunamadı.");
+      return;
+    }
+    if (users[targetIndex]?.password !== currentPassword.trim()) {
+      setIsSavingPassword(false);
+      alert("Mevcut şifre hatalı.");
+      return;
+    }
+    const nextUsers = users.map((item) =>
+      item.id === user.id ? { ...item, password: trimmedNew } : item
+    );
+    const r = await fetch("/api/users", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ users: nextUsers }),
+    });
+    setIsSavingPassword(false);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(err?.error ?? "Şifre güncellenemedi.");
+      return;
+    }
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    alert("Şifreniz güncellendi.");
   }
 
   return (
@@ -144,6 +206,44 @@ export default function SettingsPage() {
           {!canEdit && <div className="text-xs text-zinc-500">Personel POS komisyonunu değiştiremez.</div>}
         </div>
       )}
+
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+        <div className="font-medium">Şifre Değiştir</div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <input
+            className="rounded-lg border px-3 py-2 text-sm"
+            placeholder="Mevcut şifre"
+            type="password"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+          />
+          <input
+            className="rounded-lg border px-3 py-2 text-sm"
+            placeholder="Yeni şifre (4-32 karakter)"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+          />
+          <input
+            className="rounded-lg border px-3 py-2 text-sm"
+            placeholder="Yeni şifre tekrar"
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-zinc-500">Şifre uzunluğu 4 ile 32 karakter arasında olmalı.</p>
+          <button
+            type="button"
+            onClick={savePassword}
+            className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm disabled:opacity-50"
+            disabled={isSavingPassword}
+          >
+            {isSavingPassword ? "Güncelleniyor..." : "Şifreyi Güncelle"}
+          </button>
+        </div>
+      </div>
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-2">
         <div className="font-medium">Hakkında • Açık Kaynak Lisansları</div>

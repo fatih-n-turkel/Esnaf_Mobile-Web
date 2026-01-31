@@ -134,6 +134,26 @@ class AuthRepo extends ChangeNotifier {
     await box.delete(username.trim().toLowerCase());
     notifyListeners();
   }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_currentUserId == null) {
+      throw Exception('Kullanıcı bulunamadı');
+    }
+    final box = HiveBoxes.box(HiveBoxes.users);
+    final existing = box.get(_currentUserId!);
+    if (existing == null) {
+      throw Exception('Kullanıcı bulunamadı');
+    }
+    final storedPassword = (existing['password'] ?? '') as String;
+    if (storedPassword != currentPassword.trim()) {
+      throw Exception('Mevcut şifre hatalı');
+    }
+    await box.put(_currentUserId!, {...existing, 'password': newPassword.trim()});
+    notifyListeners();
+  }
 }
 
 final authRepoProvider = ChangeNotifierProvider<AuthRepo>((ref) => AuthRepo());

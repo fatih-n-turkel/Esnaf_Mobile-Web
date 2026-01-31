@@ -19,6 +19,9 @@ class SettingsScreen extends ConsumerWidget {
     final vatC = TextEditingController(text: (s.defaultVatRate * 100).toStringAsFixed(0));
     final posValC = TextEditingController(text: s.posFeeValue.toStringAsFixed(2));
     final critC = TextEditingController(text: s.criticalStockDefault.toStringAsFixed(0));
+    final currentPassC = TextEditingController();
+    final newPassC = TextEditingController();
+    final confirmPassC = TextEditingController();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -144,6 +147,75 @@ class SettingsScreen extends ConsumerWidget {
                     title: const Text('Personelde kâr gizle'),
                   ),
                   if (!canEdit) const Text('Bu rol ayarları değiştiremez.'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Şifre Değiştir', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: currentPassC,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Mevcut şifre'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: newPassC,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Yeni şifre (4-32 karakter)'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: confirmPassC,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Yeni şifre tekrar'),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final currentPassword = currentPassC.text.trim();
+                      final newPassword = newPassC.text.trim();
+                      final confirmPassword = confirmPassC.text.trim();
+                      if (currentPassword.isEmpty) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('Mevcut şifreyi girin.')));
+                        return;
+                      }
+                      if (newPassword.length < 4 || newPassword.length > 32) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Yeni şifre 4-32 karakter arasında olmalı.')),
+                        );
+                        return;
+                      }
+                      if (newPassword != confirmPassword) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('Yeni şifreler eşleşmiyor.')));
+                        return;
+                      }
+                      try {
+                        await ref.read(authRepoProvider).changePassword(
+                              currentPassword: currentPassword,
+                              newPassword: newPassword,
+                            );
+                        currentPassC.clear();
+                        newPassC.clear();
+                        confirmPassC.clear();
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(content: Text('Şifre güncellendi.')));
+                      } catch (e) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(e.toString())));
+                      }
+                    },
+                    child: const Text('Şifreyi Güncelle'),
+                  ),
                 ],
               ),
             ),

@@ -33,6 +33,9 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editForm, setEditForm] = useState({ qrCode: "", vatRate: "" });
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -127,6 +130,37 @@ export default function ProductsPage() {
     setQrBusy(false);
   }
 
+  function openEdit(product: Product) {
+    setEditProduct(product);
+    setEditForm({
+      qrCode: product.qrCode ?? "",
+      vatRate: (product.vatRate * 100).toFixed(0),
+    });
+  }
+
+  async function saveProductMeta() {
+    if (!editProduct) return;
+    setEditBusy(true);
+    const payload = {
+      qrCode: editForm.qrCode || undefined,
+      vatRate: editForm.vatRate ? Number(editForm.vatRate) / 100 : undefined,
+    };
+    const r = await fetch(`/api/products/${editProduct.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(err?.error ?? "Ürün güncellenemedi.");
+      setEditBusy(false);
+      return;
+    }
+    await qc.invalidateQueries({ queryKey: ["products"] });
+    setEditProduct(null);
+    setEditBusy(false);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -168,6 +202,15 @@ export default function ProductsPage() {
                   className="rounded-lg border px-3 py-1 text-xs hover:bg-zinc-50"
                 >
                   {p.qrCode ? "QR Görüntüle" : "QR Oluştur"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openEdit(p)}
+                  className="rounded-lg border px-2 py-1 text-xs hover:bg-zinc-50"
+                  title="Ürünü düzenle"
+                  aria-label="Ürünü düzenle"
+                >
+                  ✏️
                 </button>
               </div>
             </div>
@@ -315,6 +358,49 @@ export default function ProductsPage() {
               <div className="text-xs text-zinc-500">
                 Etiket şablonu yazdırıp ürünlere yapıştırmaya uygundur.
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="font-medium">Ürün Düzenle</div>
+              <button
+                type="button"
+                onClick={() => setEditProduct(null)}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                Kapat
+              </button>
+            </div>
+            <div className="rounded-xl border bg-zinc-50 p-3 text-sm">
+              <div className="font-medium mb-1">{editProduct.name}</div>
+              <div className="text-xs text-zinc-500">Kategori: {editProduct.category ?? "Kategori yok"}</div>
+            </div>
+            <div className="grid gap-2 text-sm">
+              <input
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder="QR kodu"
+                value={editForm.qrCode}
+                onChange={(event) => setEditForm({ ...editForm, qrCode: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder="KDV oranı (%)"
+                value={editForm.vatRate}
+                onChange={(event) => setEditForm({ ...editForm, vatRate: event.target.value })}
+              />
+              <button
+                type="button"
+                onClick={saveProductMeta}
+                className="rounded-xl bg-zinc-900 text-white py-2 text-sm font-semibold"
+                disabled={editBusy}
+              >
+                {editBusy ? "Kaydediliyor..." : "Kaydet"}
+              </button>
             </div>
           </div>
         </div>

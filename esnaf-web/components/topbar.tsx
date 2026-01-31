@@ -104,7 +104,9 @@ export default function Topbar() {
                 setSelectedPersonId(null);
               }}
             />
-            {(matches.length > 0 || personMatches.length > 0) && (!selected || query !== selected.name) && (
+            {(matches.length > 0 || personMatches.length > 0) &&
+              (!selected || query !== selected.name) &&
+              (!selectedPerson || query !== selectedPerson.name) && (
               <div className="absolute z-20 mt-2 w-full rounded-xl border bg-white shadow-lg overflow-hidden">
                 {matches.length > 0 && (
                   <div className="border-b">

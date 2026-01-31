@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/auth_repo.dart';
 
@@ -40,6 +41,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           const SizedBox(height: 4),
           const Text('Yetkilendirme, denetim ve üst düzey ayarlar burada yönetilir.',
               style: TextStyle(color: Colors.black54)),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.analytics_outlined),
+              title: const Text('Müdür Analizi'),
+              subtitle: const Text('Performans, stok ve satış analizleri görün.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.go('/analysis'),
+            ),
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(

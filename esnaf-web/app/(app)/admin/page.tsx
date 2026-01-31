@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/store/auth";
-import { DemoUser, getDemoUsers, roleLabel, saveDemoUsers } from "@/lib/auth";
+import { getDemoUsers, roleLabel, saveDemoUsers } from "@/lib/auth";
+import { DemoUser } from "@/lib/types";
 import { Role } from "@/lib/types";
 
 export default function AdminPage() {
@@ -13,7 +14,13 @@ export default function AdminPage() {
   const canManage = useMemo(() => user?.role === "ADMİN", [user?.role]);
 
   useEffect(() => {
-    setUsers(getDemoUsers());
+    let active = true;
+    getDemoUsers().then((list) => {
+      if (active) setUsers(list);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!canManage) {
@@ -59,7 +66,7 @@ export default function AdminPage() {
           <button
             type="button"
             className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
-            onClick={() => {
+            onClick={async () => {
               if (!form.name.trim() || !form.username.trim()) return;
               const created: DemoUser = {
                 id: `demo-${Date.now()}`,
@@ -70,8 +77,8 @@ export default function AdminPage() {
                 landingPath: form.role === "ADMİN" ? "/admin" : form.role === "MÜDÜR" ? "/manager" : "/personnel",
               };
               const next = [created, ...users];
-              setUsers(next);
-              saveDemoUsers(next);
+              const saved = await saveDemoUsers(next);
+              setUsers(saved);
               setForm({ name: "", username: "", role: "PERSONEL" });
             }}
           >
@@ -89,7 +96,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-2">
                 <select
                   value={demo.role}
-                  onChange={(event) => {
+                  onChange={async (event) => {
                     const nextRole = event.target.value as Role;
                     const next = users.map((u) =>
                       u.id === demo.id
@@ -100,8 +107,8 @@ export default function AdminPage() {
                           }
                         : u
                     );
-                    setUsers(next);
-                    saveDemoUsers(next);
+                    const saved = await saveDemoUsers(next);
+                    setUsers(saved);
                   }}
                   className="rounded-lg border px-2 py-1 text-xs"
                   disabled={demo.id === "user-admin"}
@@ -114,10 +121,10 @@ export default function AdminPage() {
                 {demo.id !== "user-admin" && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const next = users.filter((u) => u.id !== demo.id);
-                      setUsers(next);
-                      saveDemoUsers(next);
+                      const saved = await saveDemoUsers(next);
+                      setUsers(saved);
                     }}
                     className="text-xs text-red-600 hover:text-red-700"
                   >

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { analyticsPeriods, calcAnalyticsForPeriod } from "@/lib/analytics";
 import { fmtTRY } from "@/lib/money";
-import { Product, Sale } from "@/lib/types";
+import { DemoUser, Product, Sale } from "@/lib/types";
 import { getDemoUsers, roleLabel } from "@/lib/auth";
 import { useAuth } from "@/store/auth";
 
@@ -22,7 +22,7 @@ export default function Topbar() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Product | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  const [people, setPeople] = useState(getDemoUsers());
+  const [people, setPeople] = useState<DemoUser[]>([]);
   const user = useAuth((state) => state.user);
   const logout = useAuth((state) => state.logout);
 
@@ -34,7 +34,13 @@ export default function Topbar() {
   const canSeePersonnel = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   useEffect(() => {
-    setPeople(getDemoUsers());
+    let active = true;
+    getDemoUsers().then((list) => {
+      if (active) setPeople(list);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const matches = useMemo(() => {

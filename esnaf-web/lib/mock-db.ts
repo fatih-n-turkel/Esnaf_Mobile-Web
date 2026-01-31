@@ -1,21 +1,49 @@
-import { Category, Product, Sale, Settings } from "./types";
+import fs from "fs";
+import path from "path";
 import { randomUUID } from "crypto";
+import { Category, Product, Sale, Settings, DemoUser } from "./types";
+
+type DatabaseFile = {
+  products: Product[];
+  categories: Category[];
+  settings: Settings;
+  sales: Sale[];
+  users: DemoUser[];
+};
 
 const now = () => new Date().toISOString();
 const makeQrCode = (name: string) => `QR-${name.replace(/\s+/g, "-").toUpperCase()}-${randomUUID().slice(0, 6)}`;
+const databaseDir = path.resolve(process.cwd(), "..", "database");
+const databaseFile = path.join(databaseDir, "esnaf-web.json");
 
-// In-memory (dev demo). Gerçekte DB/Prisma/Backend’e taşınacak.
-export const db = {
-  products: [] as Product[],
-  categories: [] as Category[],
-  settings: { defaultVatRate: 0.2 } as Settings,
-  sales: [] as Sale[],
-  saleByClientReqId: new Map<string, Sale>(),
-};
+function ensureDatabaseFile() {
+  if (!fs.existsSync(databaseDir)) {
+    fs.mkdirSync(databaseDir, { recursive: true });
+  }
 
-function seedOnce() {
-  if (db.products.length) return;
+  if (!fs.existsSync(databaseFile)) {
+    const seed = buildSeedDatabase();
+    fs.writeFileSync(databaseFile, JSON.stringify(seed, null, 2), "utf8");
+  }
+}
 
+function readDatabase(): DatabaseFile {
+  ensureDatabaseFile();
+  const raw = fs.readFileSync(databaseFile, "utf8");
+  try {
+    return JSON.parse(raw) as DatabaseFile;
+  } catch {
+    const seed = buildSeedDatabase();
+    fs.writeFileSync(databaseFile, JSON.stringify(seed, null, 2), "utf8");
+    return seed;
+  }
+}
+
+function writeDatabase(next: DatabaseFile) {
+  fs.writeFileSync(databaseFile, JSON.stringify(next, null, 2), "utf8");
+}
+
+function buildSeedDatabase(): DatabaseFile {
   const seededProducts: Product[] = [
     {
       id: randomUUID(),
@@ -55,117 +83,60 @@ function seedOnce() {
       qrCode: "QR-DEFTER-A4-0003",
       isActive: true,
       updatedAt: now(),
-    }
+    },
   ];
 
-  db.products.push(...seededProducts);
-
-  const categorySet = new Set(
-    seededProducts.map((product) => product.category).filter((category): category is string => Boolean(category))
-  );
-  db.categories.push(
-    ...Array.from(categorySet).map((name) => ({
-      id: randomUUID(),
-      name,
-      createdAt: now(),
-    }))
-  );
-}
-
-seedOnce();
-seedSalesOnce();
-
-export function listProducts() {
-  return db.products.filter((p) => p.isActive);
-}
-
-export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">) {
-  const created: Product = {
-    ...input,
+  const categories: Category[] = Array.from(
+    new Set(
+      seededProducts
+        .map((product) => product.category)
+        .filter((category): category is string => Boolean(category))
+    )
+  ).map((name) => ({
     id: randomUUID(),
-    isActive: true,
-    updatedAt: now(),
-    qrCode: input.qrCode ?? makeQrCode(input.name),
-  };
-  db.products.unshift(created);
-  if (created.category) {
-    ensureCategory(created.category);
-  }
-  return created;
-}
-
-export function ensureProductQrCode(productId: string, qrCode?: string) {
-  const product = db.products.find((p) => p.id === productId);
-  if (!product) return null;
-  const nextCode = qrCode?.trim() || product.qrCode || makeQrCode(product.name);
-  product.qrCode = nextCode;
-  product.updatedAt = now();
-  return product;
-}
-
-function ensureCategory(name: string) {
-  const exists = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
-  if (exists) return exists;
-  const created: Category = { id: randomUUID(), name, createdAt: now() };
-  db.categories.unshift(created);
-  return created;
-}
-
-export function listCategories() {
-  return db.categories.slice().sort((a, b) => a.name.localeCompare(b.name, "tr"));
-}
-
-export function addCategory(name: string) {
-  return ensureCategory(name.trim());
-}
-
-export function getSettings() {
-  return db.settings;
-}
-
-export function updateSettings(partial: Partial<Settings>) {
-  db.settings = { ...db.settings, ...partial };
-  return db.settings;
-}
-
-export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "id" | "createdAt">) {
-  const existing = db.saleByClientReqId.get(clientRequestId);
-  if (existing) return existing;
-
-  const created: Sale = {
-    ...sale,
-    id: randomUUID(),
+    name,
     createdAt: now(),
-    clientRequestId,
-  };
+  }));
 
-  // stok düş
-  for (const it of created.items) {
-    const p = db.products.find((x) => x.id === it.productId);
-    if (p) {
-      p.stockOnHand = Math.max(0, p.stockOnHand - it.qty);
-      p.updatedAt = now();
-    }
-  }
-
-  db.sales.unshift(created);
-  db.saleByClientReqId.set(clientRequestId, created);
-  return created;
-}
-
-export function listSales(limit = 20) {
-  return db.sales.slice(0, limit);
-}
-
-function seedSalesOnce() {
-  if (db.sales.length) return;
-
-  const products = db.products;
-  const seedUsers = [
-    { id: "user-admin", name: "Fatih", role: "ADMİN" as const },
-    { id: "user-manager", name: "Mehmet", role: "MÜDÜR" as const },
-    { id: "user-personnel", name: "Cenk", role: "PERSONEL" as const },
+  const users: DemoUser[] = [
+    {
+      id: "user-admin",
+      username: "fatih",
+      password: "fatih",
+      name: "Fatih",
+      role: "ADMİN",
+      landingPath: "/admin",
+    },
+    {
+      id: "user-manager",
+      username: "mehmet",
+      password: "mehmet",
+      name: "Mehmet",
+      role: "MÜDÜR",
+      landingPath: "/manager",
+    },
+    {
+      id: "user-personnel",
+      username: "cenk",
+      password: "cenk",
+      name: "Cenk",
+      role: "PERSONEL",
+      landingPath: "/personnel",
+    },
   ];
+
+  const sales = buildSeedSales(seededProducts, users);
+
+  return {
+    products: seededProducts,
+    categories,
+    settings: { defaultVatRate: 0.2 },
+    sales,
+    users,
+  };
+}
+
+function buildSeedSales(products: Product[], users: DemoUser[]): Sale[] {
   const sampleSales: Array<{ daysAgo: number; items: Array<{ productId: string; qty: number }> }> = [
     { daysAgo: 0, items: [{ productId: products[0].id, qty: 6 }, { productId: products[1].id, qty: 3 }] },
     { daysAgo: 1, items: [{ productId: products[2].id, qty: 4 }] },
@@ -179,7 +150,7 @@ function seedSalesOnce() {
     { daysAgo: 320, items: [{ productId: products[2].id, qty: 5 }] },
   ];
 
-  sampleSales.forEach((seed, index) => {
+  return sampleSales.map((seed, index) => {
     const createdAt = new Date();
     createdAt.setDate(createdAt.getDate() - seed.daysAgo);
     const items = seed.items.map((entry) => {
@@ -202,11 +173,13 @@ function seedSalesOnce() {
     const totalVat = items.reduce((sum, it) => sum + it.qty * it.unitSalePrice * it.vatRate, 0);
     const netProfit = totalRevenue - totalCost;
 
-    const created: Sale = {
+    const createdBy = users[index % users.length];
+
+    return {
       id: randomUUID(),
       clientRequestId: randomUUID(),
       createdAt: createdAt.toISOString(),
-      createdBy: seedUsers[index % seedUsers.length],
+      createdBy: { id: createdBy.id, name: createdBy.name, role: createdBy.role },
       paymentType: "CASH",
       posFeeType: "RATE",
       posFeeValue: 0,
@@ -217,6 +190,112 @@ function seedSalesOnce() {
       netProfit,
       items,
     };
-    db.sales.push(created);
   });
+}
+
+export function listProducts() {
+  const db = readDatabase();
+  return db.products.filter((p) => p.isActive);
+}
+
+export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">) {
+  const db = readDatabase();
+  const created: Product = {
+    ...input,
+    id: randomUUID(),
+    isActive: true,
+    updatedAt: now(),
+    qrCode: input.qrCode ?? makeQrCode(input.name),
+  };
+  db.products.unshift(created);
+  if (created.category) {
+    ensureCategory(db, created.category);
+  }
+  writeDatabase(db);
+  return created;
+}
+
+export function ensureProductQrCode(productId: string, qrCode?: string) {
+  const db = readDatabase();
+  const product = db.products.find((p) => p.id === productId);
+  if (!product) return null;
+  const nextCode = qrCode?.trim() || product.qrCode || makeQrCode(product.name);
+  product.qrCode = nextCode;
+  product.updatedAt = now();
+  writeDatabase(db);
+  return product;
+}
+
+function ensureCategory(db: DatabaseFile, name: string) {
+  const exists = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (exists) return exists;
+  const created: Category = { id: randomUUID(), name, createdAt: now() };
+  db.categories.unshift(created);
+  return created;
+}
+
+export function listCategories() {
+  const db = readDatabase();
+  return db.categories.slice().sort((a, b) => a.name.localeCompare(b.name, "tr"));
+}
+
+export function addCategory(name: string) {
+  const db = readDatabase();
+  const created = ensureCategory(db, name.trim());
+  writeDatabase(db);
+  return created;
+}
+
+export function getSettings() {
+  const db = readDatabase();
+  return db.settings;
+}
+
+export function updateSettings(partial: Partial<Settings>) {
+  const db = readDatabase();
+  db.settings = { ...db.settings, ...partial };
+  writeDatabase(db);
+  return db.settings;
+}
+
+export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "id" | "createdAt">) {
+  const db = readDatabase();
+  const existing = db.sales.find((s) => s.clientRequestId === clientRequestId);
+  if (existing) return existing;
+
+  const created: Sale = {
+    ...sale,
+    id: randomUUID(),
+    createdAt: now(),
+    clientRequestId,
+  };
+
+  for (const it of created.items) {
+    const p = db.products.find((x) => x.id === it.productId);
+    if (p) {
+      p.stockOnHand = Math.max(0, p.stockOnHand - it.qty);
+      p.updatedAt = now();
+    }
+  }
+
+  db.sales.unshift(created);
+  writeDatabase(db);
+  return created;
+}
+
+export function listSales(limit = 20) {
+  const db = readDatabase();
+  return db.sales.slice(0, limit);
+}
+
+export function listUsers() {
+  const db = readDatabase();
+  return db.users.slice();
+}
+
+export function saveUsers(users: DemoUser[]) {
+  const db = readDatabase();
+  db.users = users;
+  writeDatabase(db);
+  return db.users;
 }

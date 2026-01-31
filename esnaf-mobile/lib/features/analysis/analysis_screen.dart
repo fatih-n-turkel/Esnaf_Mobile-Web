@@ -387,17 +387,23 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 children: [
                   const Text('Finansal Rapor', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _StatCard(title: 'Toplam Satış', value: _fmtMoney(financial.revenue), icon: Icons.payments_outlined),
-                      _StatCard(title: 'Toplam Maliyet', value: _fmtMoney(financial.cost), icon: Icons.inventory_2),
-                      _StatCard(title: 'KDV', value: _fmtMoney(financial.vat), icon: Icons.receipt_long),
-                      _StatCard(title: 'POS Gideri', value: _fmtMoney(financial.posFee), icon: Icons.credit_card),
-                      _StatCard(title: 'Kâr', value: _fmtMoney(financial.profit), icon: Icons.trending_up),
-                      _StatCard(title: 'Zarar', value: _fmtMoney(financial.loss), icon: Icons.trending_down),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const spacing = 12.0;
+                      final cardWidth = (constraints.maxWidth - spacing) / 2;
+                      return Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: [
+                          _StatCard(width: cardWidth, title: 'Toplam Satış', value: _fmtMoney(financial.revenue), icon: Icons.payments_outlined),
+                          _StatCard(width: cardWidth, title: 'Toplam Maliyet', value: _fmtMoney(financial.cost), icon: Icons.inventory_2),
+                          _StatCard(width: cardWidth, title: 'KDV', value: _fmtMoney(financial.vat), icon: Icons.receipt_long),
+                          _StatCard(width: cardWidth, title: 'POS Gideri', value: _fmtMoney(financial.posFee), icon: Icons.credit_card),
+                          _StatCard(width: cardWidth, title: 'Kâr', value: _fmtMoney(financial.profit), icon: Icons.trending_up),
+                          _StatCard(width: cardWidth, title: 'Zarar', value: _fmtMoney(financial.loss), icon: Icons.trending_down),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -545,15 +551,16 @@ class _Bullet extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.title, required this.value, required this.icon});
+  const _StatCard({required this.title, required this.value, required this.icon, required this.width});
   final String title;
   final String value;
   final IconData icon;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 160,
+      width: width,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -561,13 +568,15 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 12)),
-                  Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              )
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+                    Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

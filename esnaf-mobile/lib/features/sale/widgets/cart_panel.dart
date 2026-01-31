@@ -27,8 +27,8 @@ class CartPanel extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             Row(
               children: [
@@ -39,33 +39,13 @@ class CartPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Expanded(
-              child: cart.lines.isEmpty
-                  ? const Center(child: Text('Sepet boş'))
-                  : ListView.separated(
-                      itemCount: cart.lines.length,
-                      separatorBuilder: (_, __) => const Divider(height: 12),
-                      itemBuilder: (context, i) {
-                        final l = cart.lines[i];
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(l.product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  Text('₺${l.product.salePrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            IconButton(onPressed: () => onDec(l.product.id), icon: const Icon(Icons.remove_circle_outline)),
-                            Text('${l.qty.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            IconButton(onPressed: () => onInc(l.product.id), icon: const Icon(Icons.add_circle_outline)),
-                          ],
-                        );
-                      },
-                    ),
-            ),
+            if (cart.lines.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: Text('Sepet boş')),
+              )
+            else
+              ..._buildLineItems(cart, onInc, onDec),
             const SizedBox(height: 8),
             SegmentedButton<PaymentType>(
               segments: const [
@@ -121,6 +101,35 @@ class CartPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+List<Widget> _buildLineItems(CartState cart, void Function(String) onInc, void Function(String) onDec) {
+  final items = <Widget>[];
+  for (var i = 0; i < cart.lines.length; i++) {
+    final l = cart.lines[i];
+    items.add(
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text('₺${l.product.salePrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          IconButton(onPressed: () => onDec(l.product.id), icon: const Icon(Icons.remove_circle_outline)),
+          Text('${l.qty.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+          IconButton(onPressed: () => onInc(l.product.id), icon: const Icon(Icons.add_circle_outline)),
+        ],
+      ),
+    );
+    if (i != cart.lines.length - 1) {
+      items.add(const Divider(height: 12));
+    }
+  }
+  return items;
 }
 
 class _TotalsRow extends StatelessWidget {

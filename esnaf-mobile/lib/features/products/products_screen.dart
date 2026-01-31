@@ -64,12 +64,24 @@ class ProductsScreen extends ConsumerWidget {
               itemBuilder: (context, i) {
                 final p = products[i];
                 final critical = p.stockQty <= p.criticalStock;
+                final canEdit = _canEdit(role);
                 return ListTile(
                   leading: Icon(critical ? Icons.warning_amber : Icons.inventory_2),
                   title: Text(p.name),
                   subtitle: Text('${p.category} • Stok: ${p.stockQty} • Satış: ₺${p.salePrice.toStringAsFixed(2)}'),
-                  trailing: _canEdit(role) ? const Icon(Icons.chevron_right) : null,
-                  onTap: !_canEdit(role)
+                  trailing: canEdit
+                      ? IconButton(
+                          icon: const Icon(Icons.edit),
+                          tooltip: 'Ürünü düzenle',
+                          onPressed: () async {
+                            final s = await Navigator.of(context).push<Product?>(
+                              MaterialPageRoute(builder: (_) => ProductEditScreen(product: p)),
+                            );
+                            if (s != null) ref.invalidate(productsSeedProvider);
+                          },
+                        )
+                      : null,
+                  onTap: !canEdit
                       ? null
                       : () async {
                           final s = await Navigator.of(context).push<Product?>(

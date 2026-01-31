@@ -109,6 +109,8 @@ class HomeScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Satış • $time', style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text('Satışı yapan: ${s.createdBy}', style: const TextStyle(color: Colors.black54)),
                               const SizedBox(height: 6),
                               if (items.isEmpty)
                                 const Text('Ürün bilgisi yok')

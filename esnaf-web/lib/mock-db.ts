@@ -215,12 +215,15 @@ export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">
   return created;
 }
 
-export function ensureProductQrCode(productId: string, qrCode?: string) {
+export function updateProductMeta(productId: string, updates: { qrCode?: string; vatRate?: number }) {
   const db = readDatabase();
   const product = db.products.find((p) => p.id === productId);
   if (!product) return null;
-  const nextCode = qrCode?.trim() || product.qrCode || makeQrCode(product.name);
+  const nextCode = updates.qrCode?.trim() || product.qrCode || makeQrCode(product.name);
   product.qrCode = nextCode;
+  if (typeof updates.vatRate === "number" && !Number.isNaN(updates.vatRate)) {
+    product.vatRate = updates.vatRate;
+  }
   product.updatedAt = now();
   writeDatabase(db);
   return product;

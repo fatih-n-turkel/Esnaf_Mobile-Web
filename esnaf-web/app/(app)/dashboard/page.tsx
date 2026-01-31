@@ -35,7 +35,10 @@ export default function DashboardPage() {
           {items.slice(0, 8).map((s) => (
             <div key={s.id} className="rounded-xl border p-3 text-sm">
               <div className="flex items-center justify-between">
-                <div className="font-medium">Satış • {new Date(s.createdAt).toLocaleTimeString("tr-TR")}</div>
+                <div className="font-medium">
+                  Satış • {new Date(s.createdAt).toLocaleTimeString("tr-TR")} •{" "}
+                  <span className="text-zinc-600">{s.createdBy?.name ?? "-"}</span>
+                </div>
                 <span className="text-xs text-zinc-500">{s.paymentType}</span>
               </div>
               <div className="mt-2 space-y-1">

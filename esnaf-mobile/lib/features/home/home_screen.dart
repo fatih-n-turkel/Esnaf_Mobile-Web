@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
@@ -16,8 +17,17 @@ class HomeScreen extends ConsumerWidget {
       error: (e, st) => Center(child: Text('Seed error: $e')),
       data: (_) {
         final sales = ref.watch(salesRepoProvider).listRecent(limit: 10);
+        final salesAll = ref.watch(salesRepoProvider).listRecent(limit: 200);
         final products = ref.watch(productsRepoProvider).list();
         final critical = products.where((p) => p.stockQty <= p.criticalStock).toList();
+        final today = DateTime.now();
+        final todaySales = salesAll.where((s) {
+          final created = DateTime.fromMillisecondsSinceEpoch(s.createdAt);
+          return created.year == today.year && created.month == today.month && created.day == today.day;
+        }).toList();
+        final todayRevenue = todaySales.fold<double>(0, (sum, s) => sum + s.totalGross);
+        final todayProfit = todaySales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
+        final todayVat = todaySales.fold<double>(0, (sum, s) => sum + s.totalVat);
 
         return ListView(
           padding: const EdgeInsets.all(12),
@@ -31,6 +41,17 @@ class HomeScreen extends ConsumerWidget {
                 _StatCard(title: 'Son Satış', value: '${sales.length}', icon: Icons.receipt_long),
               ],
             ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _StatCard(title: 'Ciro (Bugün)', value: _fmtMoney(todayRevenue), icon: Icons.payments_outlined),
+                _StatCard(title: 'Kâr (Bugün)', value: _fmtMoney(todayProfit), icon: Icons.trending_up),
+                _StatCard(title: 'KDV (Bugün)', value: _fmtMoney(todayVat), icon: Icons.receipt),
+                _StatCard(title: 'Satış (Bugün)', value: '${todaySales.length}', icon: Icons.shopping_bag_outlined),
+              ],
+            ),
             const SizedBox(height: 16),
             Card(
               child: ListTile(
@@ -39,8 +60,7 @@ class HomeScreen extends ConsumerWidget {
                 subtitle: const Text('3 tık: ürün seç → ödeme → tamamla'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  // TODO: Navigate to Quick Sale tab/screen.
-                  // For now, this is a no-op to avoid build errors.
+                  context.go('/sale');
                 },
               ),
             ),
@@ -94,6 +114,8 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
+
+String _fmtMoney(double value) => '₺${value.toStringAsFixed(2)}';
 
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.title, required this.value, required this.icon});

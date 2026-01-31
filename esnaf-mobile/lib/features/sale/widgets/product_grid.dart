@@ -17,7 +17,7 @@ class ProductGrid extends StatelessWidget {
         maxCrossAxisExtent: 180,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 1.2,
+        childAspectRatio: 0.85,
       ),
       itemCount: products.length,
       itemBuilder: (context, i) {
@@ -46,7 +46,8 @@ class ProductGrid extends StatelessWidget {
                     ],
                   ),
                   const Spacer(),
-                  Text('₺${p.salePrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('₺${p.salePrice.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text('Stok: ${p.stockQty}', style: TextStyle(color: critical ? Colors.red : null)),
                   const SizedBox(height: 6),

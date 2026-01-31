@@ -23,6 +23,12 @@ class HomeScreen extends ConsumerWidget {
         final role = auth.getRole();
         final branchId = auth.getBranchId();
         final isStaff = role == 'staff';
+        if (isStaff) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go('/sale');
+          });
+          return const Center(child: Text('Dashboard personel için kaldırıldı.'));
+        }
         final salesRepo = ref.watch(salesRepoProvider);
         final sales = salesRepo
             .listRecent(limit: 10)

@@ -16,7 +16,7 @@ const baseItems = [
 export default function SidebarNav() {
   const path = usePathname();
   const user = useAuth((state) => state.user);
-  const items = [...baseItems];
+  const items = baseItems.filter((item) => !(user?.role === "PERSONEL" && item.href === "/dashboard"));
   if (user?.role === "ADMİN" || user?.role === "MÜDÜR") {
     items.push({ href: "/analysis", label: "Analiz" });
   }

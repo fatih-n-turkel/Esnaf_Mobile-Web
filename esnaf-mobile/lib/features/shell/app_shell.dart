@@ -16,10 +16,12 @@ class AppShell extends ConsumerWidget {
     _Tab('Stok', Icons.warehouse, '/stock'),
   ];
 
-  int _indexForLocation(String loc) {
-    if (loc.startsWith('/sale')) return 1;
-    if (loc.startsWith('/products')) return 2;
-    if (loc.startsWith('/stock')) return 3;
+  int _indexForLocation(String loc, List<_Tab> tabs) {
+    for (var i = 0; i < tabs.length; i++) {
+      if (loc.startsWith(tabs[i].path)) {
+        return i;
+      }
+    }
     return 0;
   }
 
@@ -29,7 +31,8 @@ class AppShell extends ConsumerWidget {
     final auth = ref.watch(authRepoProvider);
     final notifications = ref.watch(notificationsRepoProvider);
     final loc = GoRouterState.of(context).matchedLocation;
-    final current = _indexForLocation(loc);
+    final tabs = role == 'staff' ? _tabs.where((t) => t.path != '/home').toList() : _tabs;
+    final current = _indexForLocation(loc, tabs);
     final unread = notifications.unreadCount(
       branchId: auth.getBranchId(),
       userId: auth.currentUserId,
@@ -102,10 +105,10 @@ class AppShell extends ConsumerWidget {
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: current,
-        destinations: _tabs
+        destinations: tabs
             .map((t) => NavigationDestination(icon: Icon(t.icon), label: t.label))
             .toList(),
-        onDestinationSelected: (i) => context.go(_tabs[i].path),
+        onDestinationSelected: (i) => context.go(tabs[i].path),
       ),
     );
   }

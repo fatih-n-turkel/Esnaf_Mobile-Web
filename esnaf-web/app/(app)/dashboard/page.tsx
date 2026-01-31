@@ -27,6 +27,10 @@ export default function DashboardPage() {
   const isPersonnel = user?.role === "PERSONEL";
   const today = new Date().toDateString();
 
+  if (isPersonnel) {
+    return <div className="text-sm text-zinc-500">Dashboard personel için kaldırıldı.</div>;
+  }
+
   const todays = items.filter((s) => new Date(s.createdAt).toDateString() === today);
   const revenue = todays.reduce((s, x) => s + x.totalRevenue, 0);
   const profit = todays.reduce((s, x) => s + x.netProfit, 0);
@@ -73,22 +77,18 @@ export default function DashboardPage() {
             >
               <div className="font-medium text-slate-900">{summary.branch.name}</div>
               <div className="text-xs text-slate-500">Toplam satış: {summary.branchSales.length}</div>
-              {!isPersonnel && (
-                <>
-                  <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                    <span>Toplam satış tutarı</span>
-                    <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-zinc-600">
-                    <span>Net Kâr</span>
-                    <span className="font-medium text-emerald-600">{fmtTRY(summary.branchProfit)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-zinc-600">
-                    <span>Zarar</span>
-                    <span className="font-medium text-rose-600">{fmtTRY(summary.branchLoss)}</span>
-                  </div>
-                </>
-              )}
+              <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                <span>Toplam satış tutarı</span>
+                <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-600">
+                <span>Net Kâr</span>
+                <span className="font-medium text-emerald-600">{fmtTRY(summary.branchProfit)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-600">
+                <span>Zarar</span>
+                <span className="font-medium text-rose-600">{fmtTRY(summary.branchLoss)}</span>
+              </div>
             </div>
           ))}
           {!branchSummary.length && <div className="text-sm text-slate-500">Bayi özeti bulunamadı.</div>}

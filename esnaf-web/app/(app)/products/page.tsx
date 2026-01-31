@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Category, Product, Settings } from "@/lib/types";
+import { useAuth } from "@/store/auth";
 
 type CategoryEdit = {
   id: string;
@@ -30,6 +31,8 @@ export default function ProductsPage() {
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const { data: categoryData } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const { data: settingsData } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const user = useAuth((state) => state.user);
+  const canManage = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   const products: Product[] = data?.items ?? [];
   const categories: Category[] = categoryData?.items ?? [];
@@ -220,6 +223,26 @@ export default function ProductsPage() {
     setEditBusy(false);
   }
 
+  async function deleteProduct() {
+    if (!editProduct) return;
+    if (!canManage) return;
+    const confirmed = confirm(`"${editProduct.name}" ürünü silinsin mi?`);
+    if (!confirmed) return;
+    setEditBusy(true);
+    const r = await fetch(`/api/products/${editProduct.id}`, { method: "DELETE" });
+    setEditBusy(false);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(err?.error ?? "Ürün silinemedi.");
+      return;
+    }
+    setEditProduct(null);
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["products"] }),
+      qc.invalidateQueries({ queryKey: ["categories"] }),
+    ]);
+  }
+
   const filteredProducts = useMemo(() => {
     if (!selectedCategory) return products;
     if (selectedCategory === "__ALL__") return products;
@@ -291,6 +314,25 @@ export default function ProductsPage() {
       qc.invalidateQueries({ queryKey: ["categories"] }),
     ]);
     setCategoryBusyId(null);
+  }
+
+  async function deleteCategory(edit: CategoryEdit) {
+    if (!canManage) return;
+    const confirmed = confirm(`"${edit.name}" kategorisi silinsin mi?`);
+    if (!confirmed) return;
+    setCategoryBusyId(edit.id);
+    const r = await fetch(`/api/categories/${edit.id}`, { method: "DELETE" });
+    setCategoryBusyId(null);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      alert(err?.error ?? "Kategori silinemedi.");
+      return;
+    }
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["products"] }),
+      qc.invalidateQueries({ queryKey: ["categories"] }),
+    ]);
+    setCategoryEdits((prev) => prev.filter((item) => item.id !== edit.id));
   }
 
   return (
@@ -525,6 +567,16 @@ export default function ProductsPage() {
                       >
                         {categoryBusyId === edit.id ? "Kaydediliyor..." : "Kaydet"}
                       </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => deleteCategory(edit)}
+                          className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          disabled={categoryBusyId === edit.id}
+                        >
+                          Sil
+                        </button>
+                      )}
                     </div>
                     <div className="mt-3 grid gap-2 text-xs">
                       <div className="text-zinc-500">Ürünler</div>
@@ -655,14 +707,26 @@ export default function ProductsPage() {
                 value={editForm.vatRate}
                 onChange={(event) => setEditForm({ ...editForm, vatRate: event.target.value })}
               />
-              <button
-                type="button"
-                onClick={saveProductMeta}
-                className="rounded-xl bg-zinc-900 text-white py-2 text-sm font-semibold"
-                disabled={editBusy}
-              >
-                {editBusy ? "Kaydediliyor..." : "Kaydet"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={saveProductMeta}
+                  className="flex-1 rounded-xl bg-zinc-900 text-white py-2 text-sm font-semibold"
+                  disabled={editBusy}
+                >
+                  {editBusy ? "Kaydediliyor..." : "Kaydet"}
+                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={deleteProduct}
+                    className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                    disabled={editBusy}
+                  >
+                    Ürünü Sil
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

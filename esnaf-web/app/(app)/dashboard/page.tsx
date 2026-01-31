@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import KpiCards from "@/components/kpi-cards";
 import { fmtTRY } from "@/lib/money";
 import { branchLabel, filterSalesByBranch } from "@/lib/branches";
@@ -21,10 +23,22 @@ export default function DashboardPage() {
   const { data } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
   const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
   const user = useAuth((state) => state.user);
+  const router = useRouter();
 
   const items = filterSalesByBranch((data?.items ?? []) as any[], user?.role === "ADMİN" ? null : user?.branchId ?? null);
   const branches: Branch[] = branchData?.items ?? [];
+  const isPersonnel = user?.role === "PERSONEL";
   const today = new Date().toDateString();
+
+  useEffect(() => {
+    if (isPersonnel) {
+      router.replace("/sales/quick");
+    }
+  }, [isPersonnel, router]);
+
+  if (isPersonnel) {
+    return <div className="text-sm text-zinc-500">Hızlı satış sayfasına yönlendiriliyorsunuz.</div>;
+  }
 
   const todays = items.filter((s) => new Date(s.createdAt).toDateString() === today);
   const revenue = todays.reduce((s, x) => s + x.totalRevenue, 0);
@@ -64,7 +78,7 @@ export default function DashboardPage() {
               <div className="font-medium text-slate-900">{summary.branch.name}</div>
               <div className="text-xs text-slate-500">Toplam satış: {summary.branchSales.length}</div>
               <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                <span>Ciro</span>
+                <span>Toplam satış tutarı</span>
                 <span className="font-medium text-slate-900">{fmtTRY(summary.branchRevenue)}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-zinc-600">

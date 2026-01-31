@@ -154,12 +154,12 @@ export default function Topbar() {
   const unreadCount = visibleNotifications.filter((n) => !n.readAt).length;
 
   return (
-    <header className="sticky top-0 z-10 bg-white border-b">
-      <div className="flex flex-col gap-2 p-3 md:p-4">
+    <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+      <div className="flex flex-col gap-3 p-4 md:p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="relative w-full max-w-xl">
             <input
-              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10"
               placeholder="Ara"
               value={query}
               onChange={(event) => {
@@ -173,10 +173,10 @@ export default function Topbar() {
               (!selected || query !== selected.name) &&
               (!selectedPerson || query !== selectedPerson.name) &&
               (!selectedBranch || query !== selectedBranch.name) && (
-              <div className="absolute z-20 mt-2 w-full rounded-xl border bg-white shadow-lg overflow-hidden">
+              <div className="absolute z-20 mt-3 w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 shadow-2xl">
                 {matches.length > 0 && (
                   <div className="border-b">
-                    <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-zinc-500">Ürünler</div>
+                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Ürünler</div>
                     {matches.map((product) => (
                       <button
                         key={product.id}
@@ -187,10 +187,10 @@ export default function Topbar() {
                           setSelectedBranchId(null);
                           setQuery(product.name);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50"
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="font-medium text-slate-900">{product.name}</div>
+                        <div className="text-xs text-slate-500">
                           {product.category ?? "Kategori yok"} • Stok {product.stockOnHand}
                         </div>
                       </button>
@@ -199,7 +199,7 @@ export default function Topbar() {
                 )}
                 {branchMatches.length > 0 && (
                   <div className="border-b">
-                    <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-zinc-500">Bayiler</div>
+                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Bayiler</div>
                     {branchMatches.map((branch) => {
                       const totalStock = products.reduce((sum, product) => sum + getBranchStock(product, branch.id), 0);
                       return (
@@ -212,10 +212,10 @@ export default function Topbar() {
                           setSelectedBranchId(branch.id);
                           setQuery(branch.name);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50"
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        <div className="font-medium">{branch.name}</div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="font-medium text-slate-900">{branch.name}</div>
+                        <div className="text-xs text-slate-500">
                           {branchLabel(branches, branch.id)} • Toplam stok {totalStock}
                         </div>
                       </button>
@@ -224,7 +224,7 @@ export default function Topbar() {
                 )}
                 {personMatches.length > 0 && (
                   <div>
-                    <div className="px-3 py-2 text-[11px] uppercase tracking-wide text-zinc-500">Personel</div>
+                    <div className="px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Personel</div>
                     {personMatches.map((person) => (
                       <button
                         key={person.id}
@@ -235,10 +235,10 @@ export default function Topbar() {
                           setSelectedBranchId(null);
                           setQuery(person.name);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50"
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        <div className="font-medium">{person.name}</div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="font-medium text-slate-900">{person.name}</div>
+                        <div className="text-xs text-slate-500">
                           @{person.username} • {roleLabel(person.role)}
                         </div>
                       </button>
@@ -248,8 +248,8 @@ export default function Topbar() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3 text-xs text-zinc-500 whitespace-nowrap">
-            <Link href="/notifications" className="relative text-zinc-500 hover:text-zinc-900">
+          <div className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
+            <Link href="/notifications" className="relative text-slate-500 transition hover:text-slate-900">
               <span className="sr-only">Bildirimler</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -272,46 +272,52 @@ export default function Topbar() {
               )}
             </Link>
             <div>
-              Kullanıcı: <span className="font-medium text-zinc-900">{user?.name ?? "-"}</span>
-              <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
+              Kullanıcı: <span className="font-medium text-slate-900">{user?.name ?? "-"}</span>
+              <span className="ml-1 rounded-full bg-slate-100/80 px-2 py-0.5 text-[11px] text-slate-600">
                 {user?.role ? roleLabel(user.role) : "Misafir"}
               </span>
               {user?.branchId && (
-                <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
+                <span className="ml-2 rounded-full bg-slate-100/80 px-2 py-0.5 text-[11px] text-slate-600">
                   {branchLabel(branches, user.branchId)}
                 </span>
               )}
             </div>
-            <button onClick={logout} className="text-xs text-zinc-500 hover:text-zinc-900">
+            <button
+              onClick={logout}
+              className="rounded-full px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            >
               Çıkış
             </button>
           </div>
         </div>
 
         {selected && (
-          <div className="rounded-2xl border bg-zinc-50 p-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/70 p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">{selected.name}</div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-sm font-semibold text-slate-900">{selected.name}</div>
+                <div className="text-xs text-slate-500">
                   {selected.category ?? "Kategori yok"} • Stok {selected.stockOnHand} • Kritik{" "}
                   {selected.criticalStockLevel}
                 </div>
               </div>
-              <div className="text-xs text-zinc-500">
-                Satış: <span className="font-medium text-zinc-900">{fmtTRY(selected.salePrice)}</span> • Maliyet:{" "}
-                <span className="font-medium text-zinc-900">{fmtTRY(selected.costPrice)}</span> • KDV{" "}
+              <div className="text-xs text-slate-500">
+                Satış: <span className="font-medium text-slate-900">{fmtTRY(selected.salePrice)}</span> • Maliyet:{" "}
+                <span className="font-medium text-slate-900">{fmtTRY(selected.costPrice)}</span> • KDV{" "}
                 {(selected.vatRate * 100).toFixed(0)}%
               </div>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
               {analytics.map(({ period, summary }) => (
-                <div key={period.key} className="rounded-xl border bg-white px-3 py-2 text-xs">
-                  <div className="font-medium">{period.label}</div>
-                  <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-                  <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-                  <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
-                  <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+                <div
+                  key={period.key}
+                  className="rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs shadow-sm"
+                >
+                  <div className="font-medium text-slate-900">{period.label}</div>
+                  <div className="mt-1 text-slate-500">Ciro: {fmtTRY(summary.revenue)}</div>
+                  <div className="text-slate-500">Kâr: {fmtTRY(summary.profit)}</div>
+                  <div className="text-slate-500">Zarar: {fmtTRY(summary.loss)}</div>
+                  <div className="text-slate-500">Satış: {summary.soldQty} adet</div>
                 </div>
               ))}
             </div>
@@ -319,26 +325,29 @@ export default function Topbar() {
         )}
 
         {selectedBranch && (
-          <div className="rounded-2xl border bg-zinc-50 p-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/70 p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">{selectedBranch.name}</div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-sm font-semibold text-slate-900">{selectedBranch.name}</div>
+                <div className="text-xs text-slate-500">
                   Toplam stok: {branchStock} • Toplam satış: {branchSales.length}
                 </div>
               </div>
-              <div className="text-xs text-zinc-500">
+              <div className="text-xs text-slate-500">
                 {branchLabel(branches, selectedBranch.id)}
               </div>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
               {branchAnalytics.map(({ period, summary }) => (
-                <div key={period.key} className="rounded-xl border bg-white px-3 py-2 text-xs">
-                  <div className="font-medium">{period.label}</div>
-                  <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-                  <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-                  <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
-                  <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+                <div
+                  key={period.key}
+                  className="rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs shadow-sm"
+                >
+                  <div className="font-medium text-slate-900">{period.label}</div>
+                  <div className="mt-1 text-slate-500">Ciro: {fmtTRY(summary.revenue)}</div>
+                  <div className="text-slate-500">Kâr: {fmtTRY(summary.profit)}</div>
+                  <div className="text-slate-500">Zarar: {fmtTRY(summary.loss)}</div>
+                  <div className="text-slate-500">Satış: {summary.soldQty} adet</div>
                 </div>
               ))}
             </div>
@@ -346,26 +355,29 @@ export default function Topbar() {
         )}
 
         {selectedPerson && (
-          <div className="rounded-2xl border bg-zinc-50 p-3">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/70 p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">{selectedPerson.name}</div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-sm font-semibold text-slate-900">{selectedPerson.name}</div>
+                <div className="text-xs text-slate-500">
                   @{selectedPerson.username} • {roleLabel(selectedPerson.role)}
                 </div>
               </div>
-              <div className="text-xs text-zinc-500">
-                Toplam satış: <span className="font-medium text-zinc-900">{personSales.length}</span>
+              <div className="text-xs text-slate-500">
+                Toplam satış: <span className="font-medium text-slate-900">{personSales.length}</span>
               </div>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
               {personAnalytics.map(({ period, summary }) => (
-                <div key={period.key} className="rounded-xl border bg-white px-3 py-2 text-xs">
-                  <div className="font-medium">{period.label}</div>
-                  <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-                  <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-                  <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
-                  <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+                <div
+                  key={period.key}
+                  className="rounded-2xl border border-slate-200/70 bg-white/80 px-3 py-2 text-xs shadow-sm"
+                >
+                  <div className="font-medium text-slate-900">{period.label}</div>
+                  <div className="mt-1 text-slate-500">Ciro: {fmtTRY(summary.revenue)}</div>
+                  <div className="text-slate-500">Kâr: {fmtTRY(summary.profit)}</div>
+                  <div className="text-slate-500">Zarar: {fmtTRY(summary.loss)}</div>
+                  <div className="text-slate-500">Satış: {summary.soldQty} adet</div>
                 </div>
               ))}
             </div>

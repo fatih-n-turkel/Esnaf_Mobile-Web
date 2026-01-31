@@ -22,12 +22,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900">
       <div className="flex">
         <SidebarNav />
         <div className="flex-1">
           <Topbar />
-          <main className="p-4 md:p-6">{children}</main>
+          <main className="p-4 md:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-6xl space-y-6">{children}</div>
+          </main>
         </div>
       </div>
     </div>

@@ -47,22 +47,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border bg-white p-6 shadow-sm space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+      <div className="w-full max-w-sm rounded-3xl border border-slate-200/70 bg-white/90 p-6 shadow-xl shadow-slate-900/5 space-y-5">
         <div>
-          <div className="text-lg font-semibold">Esnaf Web</div>
-          <div className="text-sm text-zinc-500">Giriş yapın</div>
+          <div className="text-lg font-semibold text-slate-900">Esnaf Web</div>
+          <div className="text-sm text-slate-500">Giriş yapın</div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <input
-            className="w-full rounded-lg border px-3 py-2 text-sm"
+            className="w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10"
             placeholder="Kullanıcı adı"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
           />
           <input
-            className="w-full rounded-lg border px-3 py-2 text-sm"
+            className="w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10"
             placeholder="Şifre"
             type="password"
             value={password}
@@ -70,18 +70,20 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && <div className="rounded-lg bg-red-50 text-red-600 text-xs px-3 py-2">{error}</div>}
+        {error && (
+          <div className="rounded-2xl bg-rose-50 text-rose-600 text-xs px-3 py-2">{error}</div>
+        )}
 
         <button
           type="button"
           onClick={handleLogin}
-          className="w-full rounded-xl bg-zinc-900 text-white py-2 font-semibold"
+          className="w-full rounded-2xl bg-slate-900 text-white py-2.5 font-semibold shadow-lg shadow-slate-900/20 transition hover:bg-slate-800"
         >
           Giriş Yap
         </button>
 
-        <div className="rounded-xl border bg-zinc-50 p-3 text-xs text-zinc-600">
-          <div className="font-medium text-zinc-700 mb-2">Demo hesaplar</div>
+        <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 text-xs text-slate-600">
+          <div className="font-medium text-slate-700 mb-2">Demo hesaplar</div>
           <ul className="space-y-1">
             {demoList.map((demo) => (
                 <li key={demo.id}>

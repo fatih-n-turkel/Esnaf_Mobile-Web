@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/notifications_repo.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.child});
@@ -25,8 +26,15 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authRepoProvider).getRole();
+    final auth = ref.watch(authRepoProvider);
+    final notifications = ref.watch(notificationsRepoProvider);
     final loc = GoRouterState.of(context).matchedLocation;
     final current = _indexForLocation(loc);
+    final unread = notifications.unreadCount(
+      branchId: auth.getBranchId(),
+      userId: auth.currentUserId,
+      role: role,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -35,7 +43,28 @@ class AppShell extends ConsumerWidget {
           IconButton(
             tooltip: 'Bildirimler',
             onPressed: () => context.go('/notifications'),
-            icon: const Icon(Icons.notifications_none),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none),
+                if (unread > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        unread.toString(),
+                        style: const TextStyle(fontSize: 10, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {

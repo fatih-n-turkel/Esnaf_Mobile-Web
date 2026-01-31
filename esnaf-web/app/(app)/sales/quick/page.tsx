@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ProductGrid from "@/components/sales/product-grid";
 import CartPanel from "@/components/sales/cart-panel";
 import { useCart } from "@/store/cart";
-import { Product } from "@/lib/types";
+import { Branch, Product } from "@/lib/types";
 import { getBranchStock } from "@/lib/branches";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/store/auth";
@@ -15,13 +15,21 @@ async function fetchProducts() {
   return r.json();
 }
 
+async function fetchBranches() {
+  const r = await fetch("/api/branches", { cache: "no-store" });
+  return r.json();
+}
+
 export default function QuickSalesPage() {
   const qc = useQueryClient();
   const cart = useCart();
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
+  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
   const products: Product[] = data?.items ?? [];
+  const branches: Branch[] = branchData?.items ?? [];
   const user = useAuth((state) => state.user);
-  const branchId = user?.branchId ?? null;
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const branchId = user?.role === "ADMİN" ? selectedBranchId : user?.branchId ?? null;
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
   const [mode, setMode] = useState<"MANUAL" | "QR">("MANUAL");
   const [scanValue, setScanValue] = useState("");
@@ -33,6 +41,12 @@ export default function QuickSalesPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastCameraScanRef = useRef<{ code: string; at: number } | null>(null);
+
+  useEffect(() => {
+    if (user?.role === "ADMİN" && !selectedBranchId && branches.length > 0) {
+      setSelectedBranchId(branches[0].id);
+    }
+  }, [branches, selectedBranchId, user?.role]);
 
   const branchProducts = useMemo(
     () => products.map((p) => ({ ...p, stockOnHand: getBranchStock(p, branchId) })),
@@ -206,6 +220,24 @@ export default function QuickSalesPage() {
           <h1 className="text-xl font-semibold">Hızlı Satış</h1>
           <p className="text-sm text-zinc-500">Satış tamamlandığında stoklar otomatik güncellenir.</p>
         </div>
+
+        {user?.role === "ADMİN" && (
+          <div className="rounded-2xl border bg-white p-3 shadow-sm space-y-2">
+            <div className="text-xs font-medium text-zinc-700">Bayi seçimi (sadece admin)</div>
+            <select
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              value={selectedBranchId ?? ""}
+              onChange={(event) => setSelectedBranchId(event.target.value || null)}
+            >
+              <option value="">Bayi seçin</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="rounded-2xl border bg-white p-3 shadow-sm space-y-2">
           <div className="flex flex-wrap gap-2">

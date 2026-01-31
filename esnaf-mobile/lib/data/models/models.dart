@@ -10,6 +10,8 @@ enum PosFeeType { percent, fixed }
 
 enum StockMoveType { inMove, outMove, adjust }
 
+enum NotificationScope { global, branch, user }
+
 class Branch {
   Branch({required this.id, required this.name, required this.createdAt});
 
@@ -347,5 +349,52 @@ class AppSettings {
         posFeeValue: 2.5,
         profitHiddenForStaff: true,
         criticalStockDefault: 5,
+      );
+}
+
+class AppNotification {
+  AppNotification({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.createdAt,
+    required this.scope,
+    this.readAt,
+    this.branchId,
+    this.userId,
+  });
+
+  final String id;
+  final String title;
+  final String message;
+  final int createdAt;
+  final int? readAt;
+  final NotificationScope scope;
+  final String? branchId;
+  final String? userId;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'message': message,
+        'createdAt': createdAt,
+        'readAt': readAt,
+        'scope': scope.name,
+        'branchId': branchId,
+        'userId': userId,
+      };
+
+  static AppNotification fromMap(Map m) => AppNotification(
+        id: (m['id'] ?? '') as String,
+        title: (m['title'] ?? '') as String,
+        message: (m['message'] ?? '') as String,
+        createdAt: (m['createdAt'] ?? 0) as int,
+        readAt: m['readAt'] as int?,
+        scope: NotificationScope.values.firstWhere(
+          (e) => e.name == (m['scope'] ?? 'global'),
+          orElse: () => NotificationScope.global,
+        ),
+        branchId: m['branchId'] as String?,
+        userId: m['userId'] as String?,
       );
 }

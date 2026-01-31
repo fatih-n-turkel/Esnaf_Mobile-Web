@@ -12,6 +12,11 @@ import '../features/stock/stock_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/sync/sync_screen.dart';
+import '../features/analysis/analysis_screen.dart';
+import '../features/notifications/notifications_screen.dart';
+import '../features/admin/admin_screen.dart';
+import '../features/manager/manager_screen.dart';
+import '../features/personnel/personnel_screen.dart';
 
 import '../data/repositories/auth_repo.dart';
 
@@ -42,6 +47,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/sale/qr', builder: (c, s) => const QRSaleScreen()),
           GoRoute(path: '/products', builder: (c, s) => const ProductsScreen()),
           GoRoute(path: '/stock', builder: (c, s) => const StockScreen()),
+          GoRoute(path: '/analysis', builder: (c, s) => const AnalysisScreen()),
+          GoRoute(path: '/notifications', builder: (c, s) => const NotificationsScreen()),
+          GoRoute(path: '/admin', builder: (c, s) => const AdminScreen()),
+          GoRoute(path: '/manager', builder: (c, s) => const ManagerScreen()),
+          GoRoute(path: '/personnel', builder: (c, s) => const PersonnelScreen()),
           GoRoute(path: '/reports', builder: (c, s) => const ReportsScreen()),
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
           GoRoute(path: '/sync', builder: (c, s) => const SyncScreen()),

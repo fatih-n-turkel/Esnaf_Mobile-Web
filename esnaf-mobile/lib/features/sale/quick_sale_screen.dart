@@ -122,8 +122,8 @@ class QuickSaleScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          SizedBox(
-                            height: 280,
+                          Expanded(
+                            flex: 2,
                             child: CartPanel(
                               cart: cart,
                               onInc: cartN.inc,

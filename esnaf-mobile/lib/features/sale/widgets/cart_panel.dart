@@ -86,10 +86,10 @@ class CartPanel extends StatelessWidget {
                 ],
               ),
             const SizedBox(height: 10),
-            _TotalsRow(label: 'Toplam', value: cart.gross),
             _TotalsRow(label: 'KDV', value: cart.vatTotal),
             _TotalsRow(label: 'POS', value: cart.posFee),
-            _TotalsRow(label: 'Net Kâr', value: cart.netProfit, bold: true),
+            _TotalsRow(label: 'Net Kâr', value: cart.netProfit),
+            _TotalsRow(label: 'Toplam', value: cart.gross, bold: true),
             const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: onCheckout,

@@ -22,6 +22,7 @@ class HomeScreen extends ConsumerWidget {
         final auth = ref.watch(authRepoProvider);
         final role = auth.getRole();
         final branchId = auth.getBranchId();
+        final isStaff = role == 'staff';
         final salesRepo = ref.watch(salesRepoProvider);
         final sales = salesRepo
             .listRecent(limit: 10)
@@ -70,12 +71,24 @@ class HomeScreen extends ConsumerWidget {
             Wrap(
               spacing: 12,
               runSpacing: 12,
-              children: [
-                _StatCard(title: 'Ciro (Bugün)', value: _fmtMoney(todayRevenue), icon: Icons.payments_outlined),
-                _StatCard(title: 'Kâr (Bugün)', value: _fmtMoney(todayProfit), icon: Icons.trending_up),
-                _StatCard(title: 'Zarar (Bugün)', value: _fmtMoney(todayLoss), icon: Icons.trending_down),
-                _StatCard(title: 'Satış (Bugün)', value: '${todaySales.length}', icon: Icons.shopping_bag_outlined),
-              ],
+              children: isStaff
+                  ? [
+                      _StatCard(
+                        title: 'Satış (Bugün)',
+                        value: '${todaySales.length}',
+                        icon: Icons.shopping_bag_outlined,
+                      ),
+                    ]
+                  : [
+                      _StatCard(title: 'Ciro (Bugün)', value: _fmtMoney(todayRevenue), icon: Icons.payments_outlined),
+                      _StatCard(title: 'Kâr (Bugün)', value: _fmtMoney(todayProfit), icon: Icons.trending_up),
+                      _StatCard(title: 'Zarar (Bugün)', value: _fmtMoney(todayLoss), icon: Icons.trending_down),
+                      _StatCard(
+                        title: 'Satış (Bugün)',
+                        value: '${todaySales.length}',
+                        icon: Icons.shopping_bag_outlined,
+                      ),
+                    ],
             ),
             const SizedBox(height: 16),
             Card(
@@ -102,30 +115,35 @@ class HomeScreen extends ConsumerWidget {
                                   Text('Toplam satış: ${entry.sales.length}',
                                       style: const TextStyle(color: Colors.black54, fontSize: 12)),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Ciro', style: TextStyle(fontSize: 12)),
-                                      Text(_fmtMoney(entry.revenue),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Kâr', style: TextStyle(fontSize: 12)),
-                                      Text(_fmtMoney(entry.profit),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green)),
-                                    ],
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Zarar', style: TextStyle(fontSize: 12)),
-                                      Text(_fmtMoney(entry.loss),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red)),
-                                    ],
-                                  ),
+                                  if (!isStaff)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Toplam satış tutarı', style: TextStyle(fontSize: 12)),
+                                        Text(_fmtMoney(entry.revenue),
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  if (!isStaff)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Kâr', style: TextStyle(fontSize: 12)),
+                                        Text(_fmtMoney(entry.profit),
+                                            style: const TextStyle(
+                                                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green)),
+                                      ],
+                                    ),
+                                  if (!isStaff)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Zarar', style: TextStyle(fontSize: 12)),
+                                        Text(_fmtMoney(entry.loss),
+                                            style: const TextStyle(
+                                                fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red)),
+                                      ],
+                                    ),
                                 ],
                               ),
                             ),

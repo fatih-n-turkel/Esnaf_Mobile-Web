@@ -74,7 +74,6 @@ class AppShell extends ConsumerWidget {
               if (v == 'sync') context.go('/sync');
               if (v == 'admin') context.go('/admin');
               if (v == 'manager') context.go('/manager');
-              if (v == 'personnel') context.go('/personnel');
               if (v == 'logout') await ref.read(authRepoProvider).logout();
             },
             itemBuilder: (c) {
@@ -93,10 +92,6 @@ class AppShell extends ConsumerWidget {
               if (role == 'manager') {
                 items.add(const PopupMenuItem(value: 'manager', child: Text('Müdür Paneli')));
               }
-              if (role == 'staff') {
-                items.add(const PopupMenuItem(value: 'personnel', child: Text('Personel Paneli')));
-              }
-
               items.add(const PopupMenuDivider());
               items.add(const PopupMenuItem(value: 'logout', child: Text('Çıkış')));
               return items;

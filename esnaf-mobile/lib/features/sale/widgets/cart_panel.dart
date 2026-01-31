@@ -10,8 +10,8 @@ class CartPanel extends StatelessWidget {
     required this.onDec,
     required this.onClear,
     required this.onChangePayment,
-    required this.onChangePosFee,
     required this.onCheckout,
+    required this.showBreakdown,
   });
 
   final CartState cart;
@@ -19,8 +19,8 @@ class CartPanel extends StatelessWidget {
   final void Function(String productId) onDec;
   final VoidCallback onClear;
   final void Function(PaymentType) onChangePayment;
-  final void Function(PosFeeType, double) onChangePosFee;
   final VoidCallback onCheckout;
+  final bool showBreakdown;
 
   @override
   Widget build(BuildContext context) {
@@ -55,40 +55,11 @@ class CartPanel extends StatelessWidget {
               selected: {cart.paymentType},
               onSelectionChanged: (s) => onChangePayment(s.first),
             ),
-            const SizedBox(height: 8),
-            if (cart.paymentType == PaymentType.card)
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<PosFeeType>(
-                      value: cart.posFeeType,
-                      items: const [
-                        DropdownMenuItem(value: PosFeeType.percent, child: Text('Komisyon %')),
-                        DropdownMenuItem(value: PosFeeType.fixed, child: Text('Sabit ₺')),
-                      ],
-                      onChanged: (v) => onChangePosFee(v ?? cart.posFeeType, cart.posFeeValue),
-                      decoration: const InputDecoration(labelText: 'POS'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 120,
-                    child: TextFormField(
-                      initialValue: cart.posFeeValue.toStringAsFixed(2),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(labelText: cart.posFeeType == PosFeeType.percent ? '%' : '₺'),
-                      onChanged: (v) {
-                        final parsed = double.tryParse(v.replaceAll(',', '.'));
-                        if (parsed != null) onChangePosFee(cart.posFeeType, parsed);
-                      },
-                    ),
-                  ),
-                ],
-              ),
             const SizedBox(height: 10),
-            _TotalsRow(label: 'KDV', value: cart.vatTotal),
-            _TotalsRow(label: 'POS', value: cart.posFee),
-            _TotalsRow(label: 'Net Kâr', value: cart.netProfit),
+            if (showBreakdown) ...[
+              _TotalsRow(label: 'KDV', value: cart.vatTotal),
+              _TotalsRow(label: 'Net Kâr', value: cart.netProfit),
+            ],
             _TotalsRow(label: 'Toplam', value: cart.gross, bold: true),
             const SizedBox(height: 10),
             FilledButton.icon(

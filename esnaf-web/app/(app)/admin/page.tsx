@@ -1,16 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/store/auth";
-import { DemoUser, demoUsers, roleLabel } from "@/lib/auth";
+import { DemoUser, getDemoUsers, roleLabel, saveDemoUsers } from "@/lib/auth";
 import { Role } from "@/lib/types";
 
 export default function AdminPage() {
   const user = useAuth((state) => state.user);
-  const [users, setUsers] = useState<DemoUser[]>(demoUsers);
+  const [users, setUsers] = useState<DemoUser[]>([]);
   const [form, setForm] = useState({ name: "", username: "", role: "PERSONEL" as Role });
 
   const canManage = useMemo(() => user?.role === "ADMİN", [user?.role]);
+
+  useEffect(() => {
+    setUsers(getDemoUsers());
+  }, []);
 
   if (!canManage) {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece admin kullanıcılar içindir.</div>;
@@ -65,7 +69,9 @@ export default function AdminPage() {
                 role: form.role,
                 landingPath: form.role === "ADMİN" ? "/admin" : form.role === "MÜDÜR" ? "/manager" : "/personnel",
               };
-              setUsers([created, ...users]);
+              const next = [created, ...users];
+              setUsers(next);
+              saveDemoUsers(next);
               setForm({ name: "", username: "", role: "PERSONEL" });
             }}
           >
@@ -81,11 +87,38 @@ export default function AdminPage() {
                 <div className="text-xs text-zinc-500">@{demo.username}</div>
               </div>
               <div className="flex items-center gap-2">
+                <select
+                  value={demo.role}
+                  onChange={(event) => {
+                    const nextRole = event.target.value as Role;
+                    const next = users.map((u) =>
+                      u.id === demo.id
+                        ? {
+                            ...u,
+                            role: nextRole,
+                            landingPath: nextRole === "ADMİN" ? "/admin" : nextRole === "MÜDÜR" ? "/manager" : "/personnel",
+                          }
+                        : u
+                    );
+                    setUsers(next);
+                    saveDemoUsers(next);
+                  }}
+                  className="rounded-lg border px-2 py-1 text-xs"
+                  disabled={demo.id === "user-admin"}
+                >
+                  <option value="ADMİN">Admin</option>
+                  <option value="MÜDÜR">Müdür</option>
+                  <option value="PERSONEL">Personel</option>
+                </select>
                 <span className="text-xs rounded-full bg-zinc-100 px-2 py-1">{roleLabel(demo.role)}</span>
                 {demo.id !== "user-admin" && (
                   <button
                     type="button"
-                    onClick={() => setUsers(users.filter((u) => u.id !== demo.id))}
+                    onClick={() => {
+                      const next = users.filter((u) => u.id !== demo.id);
+                      setUsers(next);
+                      saveDemoUsers(next);
+                    }}
                     className="text-xs text-red-600 hover:text-red-700"
                   >
                     Yetkiyi Kaldır

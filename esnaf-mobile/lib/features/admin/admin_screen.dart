@@ -13,13 +13,7 @@ class AdminScreen extends ConsumerStatefulWidget {
 class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
-  String _role = 'admin';
-
-  final List<_DemoUser> _users = [
-    const _DemoUser(id: 'user-admin', name: 'Admin', username: 'admin', role: 'admin'),
-    const _DemoUser(id: 'user-manager', name: 'Müdür', username: 'manager', role: 'manager'),
-    const _DemoUser(id: 'user-staff', name: 'Personel', username: 'staff', role: 'staff'),
-  ];
+  String _role = 'staff';
 
   @override
   void dispose() {
@@ -30,7 +24,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final role = ref.watch(authRepoProvider).getRole();
+    final auth = ref.watch(authRepoProvider);
+    final role = auth.getRole();
+    final users = auth.listUsers();
 
     if (role != 'admin') {
       return const Center(child: Text('Bu sayfa sadece admin kullanıcılar içindir.'));
@@ -86,21 +82,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         final name = _nameController.text.trim();
                         final username = _usernameController.text.trim();
                         if (name.isEmpty || username.isEmpty) return;
+                        auth.upsertUser(name: name, username: username, role: _role, password: '1234');
                         setState(() {
-                          _users.insert(
-                            0,
-                            _DemoUser(id: 'demo-${DateTime.now().millisecondsSinceEpoch}', name: name, username: username, role: _role),
-                          );
                           _nameController.clear();
                           _usernameController.clear();
-                          _role = 'admin';
+                          _role = 'staff';
                         });
                       },
                       child: const Text('Yetkili Ekle'),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ..._users.map(
+                  ...users.map(
                     (user) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(user.name),
@@ -108,10 +101,24 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       trailing: Wrap(
                         spacing: 8,
                         children: [
+                          DropdownButton<String>(
+                            value: user.role,
+                            onChanged: user.username == 'fatih'
+                                ? null
+                                : (value) {
+                                    if (value == null) return;
+                                    auth.updateUserRole(username: user.username, role: value);
+                                  },
+                            items: const [
+                              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                              DropdownMenuItem(value: 'manager', child: Text('Müdür')),
+                              DropdownMenuItem(value: 'staff', child: Text('Personel')),
+                            ],
+                          ),
                           Chip(label: Text(_roleLabel(user.role))),
-                          if (user.id != 'user-admin')
+                          if (user.username != 'fatih')
                             TextButton(
-                              onPressed: () => setState(() => _users.removeWhere((u) => u.id == user.id)),
+                              onPressed: () => auth.removeUser(user.username),
                               child: const Text('Yetkiyi Kaldır', style: TextStyle(color: Colors.red)),
                             ),
                         ],
@@ -139,12 +146,4 @@ String _roleLabel(String role) {
     default:
       return role;
   }
-}
-
-class _DemoUser {
-  const _DemoUser({required this.id, required this.name, required this.username, required this.role});
-  final String id;
-  final String name;
-  final String username;
-  final String role;
 }

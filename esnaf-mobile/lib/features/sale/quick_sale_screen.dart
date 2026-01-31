@@ -50,7 +50,7 @@ class QuickSaleScreen extends ConsumerWidget {
                     child: TextField(
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.search),
-                        labelText: 'Ürün ara (isim/QR)',
+                        labelText: 'Ara',
                       ),
                       onChanged: (v) => ref.read(_searchProvider.notifier).state = v,
                     ),

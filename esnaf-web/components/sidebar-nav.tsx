@@ -9,7 +9,6 @@ const baseItems = [
   { href: "/sales/quick", label: "Hızlı Satış" },
   { href: "/products", label: "Ürünler" },
   { href: "/stock", label: "Stok" },
-  { href: "/analysis", label: "Analiz" },
   { href: "/notifications", label: "Bildirimler" },
   { href: "/settings", label: "Ayarlar" },
 ];
@@ -18,6 +17,9 @@ export default function SidebarNav() {
   const path = usePathname();
   const user = useAuth((state) => state.user);
   const items = [...baseItems];
+  if (user?.role === "ADMİN" || user?.role === "MÜDÜR") {
+    items.push({ href: "/analysis", label: "Analiz" });
+  }
   if (user?.role === "ADMİN") {
     items.push({ href: "/admin", label: "Admin" });
   }

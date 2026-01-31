@@ -11,8 +11,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _user = TextEditingController(text: 'admin');
-  final _pass = TextEditingController(text: '1234');
+  final _user = TextEditingController(text: 'fatih');
+  final _pass = TextEditingController(text: 'fatih');
   bool _loading = false;
 
   @override
@@ -47,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Demo Kullanıcılar: admin / manager / staff', textAlign: TextAlign.center),
+                const Text('Demo Kullanıcılar: fatih / mehmet / cenk', textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 TextField(controller: _user, decoration: const InputDecoration(labelText: 'Kullanıcı adı')),
                 const SizedBox(height: 12),

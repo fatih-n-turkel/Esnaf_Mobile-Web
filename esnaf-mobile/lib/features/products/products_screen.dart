@@ -32,7 +32,7 @@ class ProductsScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Ürün ara'),
+                  decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Ara'),
                   onChanged: (v) => ref.read(_pQuery.notifier).state = v,
                 ),
               ),

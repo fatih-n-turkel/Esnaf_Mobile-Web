@@ -7,6 +7,7 @@ import CartPanel from "@/components/sales/cart-panel";
 import { useCart } from "@/store/cart";
 import { Product } from "@/lib/types";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "@/store/auth";
 
 async function fetchProducts() {
   const r = await fetch("/api/products", { cache: "no-store" });
@@ -18,6 +19,7 @@ export default function QuickSalesPage() {
   const cart = useCart();
   const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const products: Product[] = data?.items ?? [];
+  const user = useAuth((state) => state.user);
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
   const [mode, setMode] = useState<"MANUAL" | "QR">("MANUAL");
   const [scanValue, setScanValue] = useState("");
@@ -47,7 +49,11 @@ export default function QuickSalesPage() {
 
     const payload = {
       clientRequestId,
-      createdBy: { id: "demo-user-1", name: "Demo Müdür", role: "MANAGER" },
+      createdBy: {
+        id: user?.id ?? "demo-user",
+        name: user?.name ?? "Demo",
+        role: user?.role ?? "PERSONEL",
+      },
       paymentType: cart.paymentType,
       posFeeType: cart.posFeeType,
       posFeeValue: cart.posFeeValue,

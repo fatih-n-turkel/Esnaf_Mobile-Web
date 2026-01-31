@@ -50,8 +50,10 @@ class AppShell extends ConsumerWidget {
             },
             itemBuilder: (c) {
               final items = <PopupMenuEntry<String>>[
-                const PopupMenuItem(value: 'analysis', child: Text('Analiz')),
-                const PopupMenuItem(value: 'reports', child: Text('Raporlar')),
+                if (role == 'admin' || role == 'manager')
+                  const PopupMenuItem(value: 'analysis', child: Text('Analiz')),
+                if (role == 'admin' || role == 'manager')
+                  const PopupMenuItem(value: 'reports', child: Text('Raporlar')),
                 const PopupMenuItem(value: 'settings', child: Text('Ayarlar')),
                 const PopupMenuItem(value: 'sync', child: Text('Senkron')),
               ];

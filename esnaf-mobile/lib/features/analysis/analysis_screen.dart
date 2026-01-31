@@ -1,19 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/repositories/auth_repo.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
 import '../../data/models/models.dart';
 
-class AnalysisScreen extends ConsumerWidget {
+class AnalysisScreen extends ConsumerStatefulWidget {
   const AnalysisScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnalysisScreen> createState() => _AnalysisScreenState();
+}
+
+class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authRepoProvider);
+    final role = auth.getRole();
+    final canSee = role == 'admin' || role == 'manager';
+
+    if (!canSee) {
+      return const Center(child: Text('Bu sayfa sadece admin ve müdür kullanıcılar içindir.'));
+    }
+
     final salesRepo = ref.watch(salesRepoProvider);
     final products = ref.watch(productsRepoProvider).list();
     final sales = salesRepo.listRecent(limit: 500);
     final totalStock = products.fold<double>(0, (sum, p) => sum + p.stockQty);
+
+    final personnel = auth.listUsers().where((u) => u.role == 'staff').toList();
+    final filteredPersonnel = personnel
+        .where((person) => _query.isEmpty || person.name.toLowerCase().contains(_query) || person.username.toLowerCase().contains(_query))
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -51,6 +72,110 @@ class AnalysisScreen extends ConsumerWidget {
                 ),
               );
             }).toList(),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Personel Satışları & Performans', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      labelText: 'Ara',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                  ),
+                  const SizedBox(height: 12),
+                  if (filteredPersonnel.isEmpty)
+                    const Text('Personel bulunamadı.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ...filteredPersonnel.map((person) {
+                    final personSales = sales.where((sale) => sale.createdBy == person.username).toList();
+                    final totalRevenue = personSales.fold<double>(0, (sum, sale) => sum + sale.totalGross);
+                    final totalProfit = personSales.fold<double>(0, (sum, sale) => sum + sale.totalNetProfit);
+                    final lastSaleAt = personSales.isEmpty
+                        ? null
+                        : DateTime.fromMillisecondsSinceEpoch(personSales.first.createdAt);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
+                        color: Colors.grey.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(person.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text('@${person.username}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('Toplam satış: ${personSales.length}',
+                                          style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                      Text(
+                                        'Son satış: ${lastSaleAt != null ? lastSaleAt.toLocal().toString().split(' ').first : '-'}',
+                                        style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Ciro: ${_fmtMoney(totalRevenue)} • Net kâr: ${_fmtMoney(totalProfit)}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: analyticsPeriods.map((period) {
+                                  final summary = _calcSummary(salesRepo, personSales, period);
+                                  return SizedBox(
+                                    width: 180,
+                                    child: Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(period.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                            const SizedBox(height: 4),
+                                            Text('Ciro: ${_fmtMoney(summary.revenue)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Kâr: ${_fmtMoney(summary.profit)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Zarar: ${_fmtMoney(summary.loss)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Satış: ${summary.soldQty.toStringAsFixed(0)} adet',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Card(

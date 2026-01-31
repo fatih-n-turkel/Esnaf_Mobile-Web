@@ -9,45 +9,64 @@ export type DemoUser = {
   landingPath: string;
 };
 
-export const demoUsers: DemoUser[] = [
+const defaultDemoUsers: DemoUser[] = [
   {
     id: "user-admin",
-    username: "admin",
-    password: "admin",
-    name: "Admin",
+    username: "fatih",
+    password: "fatih",
+    name: "Fatih",
     role: "ADMİN",
     landingPath: "/admin",
   },
   {
     id: "user-manager",
-    username: "müdür",
-    password: "müdür",
-    name: "Müdür",
-    role: "MÜDÜR",
-    landingPath: "/manager",
-  },
-  {
-    id: "user-manager-ascii",
-    username: "mudur",
-    password: "mudur",
-    name: "Müdür",
+    username: "mehmet",
+    password: "mehmet",
+    name: "Mehmet",
     role: "MÜDÜR",
     landingPath: "/manager",
   },
   {
     id: "user-personnel",
-    username: "personel",
-    password: "personel",
-    name: "Personel",
+    username: "cenk",
+    password: "cenk",
+    name: "Cenk",
     role: "PERSONEL",
     landingPath: "/personnel",
   },
 ];
 
+const storageKey = "esnaf-demo-users";
+
+export function getDemoUsers(): DemoUser[] {
+  if (typeof window === "undefined") {
+    return defaultDemoUsers;
+  }
+  const stored = window.localStorage.getItem(storageKey);
+  if (!stored) {
+    window.localStorage.setItem(storageKey, JSON.stringify(defaultDemoUsers));
+    return defaultDemoUsers;
+  }
+  try {
+    const parsed = JSON.parse(stored) as DemoUser[];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return defaultDemoUsers;
+    }
+    return parsed;
+  } catch {
+    return defaultDemoUsers;
+  }
+}
+
+export function saveDemoUsers(users: DemoUser[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(storageKey, JSON.stringify(users));
+}
+
 export function authenticate(username: string, password: string) {
   const normalized = username.trim().toLowerCase();
   const pass = password.trim().toLowerCase();
-  const user = demoUsers.find(
+  const user = getDemoUsers().find(
     (u) => u.username.toLowerCase() === normalized && u.password.toLowerCase() === pass
   );
   if (!user) return null;

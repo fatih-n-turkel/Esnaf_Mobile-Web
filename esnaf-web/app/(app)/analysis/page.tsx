@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { jsPDF } from "jspdf";
 import { analyticsPeriods, calcAnalyticsForPeriod } from "@/lib/analytics";
 import { fmtTRY } from "@/lib/money";
 import { Branch, DemoUser, Product, Sale } from "@/lib/types";

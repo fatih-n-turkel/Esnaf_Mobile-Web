@@ -14,6 +14,7 @@ class SalesRepo {
     required PosFeeType posFeeType,
     required double posFeeValue,
     required String createdBy,
+    required String branchId,
   }) async {
     if (items.isEmpty) throw Exception('Sepet boş');
 
@@ -56,6 +57,7 @@ class SalesRepo {
       totalNetProfit: totalNetProfit,
       createdAt: now,
       createdBy: createdBy,
+      branchId: branchId,
       status: 'completed',
     );
 
@@ -71,7 +73,7 @@ class SalesRepo {
     final prodRepo = ref.read(productsRepoProvider);
     final movBox = HiveBoxes.box(HiveBoxes.stockMovements);
     for (final it in patchedItems) {
-      await prodRepo.adjustStock(it.productId, -it.qty);
+      await prodRepo.adjustStock(it.productId, -it.qty, branchId: branchId);
       final mov = StockMovement(
         id: newId(),
         productId: it.productId,
@@ -80,6 +82,7 @@ class SalesRepo {
         reason: 'sale:$saleId',
         createdAt: now,
         createdBy: createdBy,
+        branchId: branchId,
       );
       await movBox.put(mov.id, mov.toMap());
     }

@@ -30,7 +30,9 @@ class QuickSaleScreen extends ConsumerWidget {
     final cat = ref.watch(_categoryProvider);
 
     final prodRepo = ref.watch(productsRepoProvider);
-    final products = prodRepo.list(query: query, category: cat);
+    final auth = ref.watch(authRepoProvider);
+    final branchId = auth.getBranchId();
+    final products = prodRepo.list(query: query, category: cat, branchId: branchId);
     final categories = prodRepo.categories();
 
     final cart = ref.watch(cartProvider2);
@@ -153,6 +155,7 @@ class QuickSaleScreen extends ConsumerWidget {
 
     final auth = ref.read(authRepoProvider);
     final createdBy = auth.currentUserId ?? 'admin';
+    final branchId = auth.getBranchId();
 
     final items = cart.lines.map((l) {
       return SaleItem(
@@ -175,6 +178,7 @@ class QuickSaleScreen extends ConsumerWidget {
         posFeeType: cart.posFeeType,
         posFeeValue: cart.posFeeValue,
         createdBy: createdBy,
+        branchId: branchId,
       );
 
       ref.read(cartProvider2.notifier).clear();

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/branches_repo.dart';
+import '../../data/models/models.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -14,18 +16,24 @@ class AdminScreen extends ConsumerStatefulWidget {
 class _AdminScreenState extends ConsumerState<AdminScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
+  final _branchController = TextEditingController();
   String _role = 'staff';
+  String _branchId = defaultBranchMainId;
 
   @override
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
+    _branchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authRepoProvider);
+    ref.watch(branchesSeedProvider);
+    final branchRepo = ref.watch(branchesRepoProvider);
+    final branches = branchRepo.list();
     final role = auth.getRole();
     final users = auth.listUsers();
 
@@ -49,6 +57,43 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               subtitle: const Text('Performans, stok ve satış analizleri görün.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.go('/analysis'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bayi Yönetimi', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _branchController,
+                    decoration: const InputDecoration(labelText: 'Bayi adı', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final name = _branchController.text.trim();
+                        if (name.isEmpty) return;
+                        await branchRepo.addBranch(name);
+                        setState(() => _branchController.clear());
+                      },
+                      child: const Text('Bayi Ekle'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (branches.isEmpty) const Text('Henüz bayi yok.', style: TextStyle(color: Colors.black54)),
+                  ...branches.map((branch) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(branch.name),
+                        subtitle: Text('ID: ${branch.id}'),
+                      )),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -85,6 +130,20 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     ],
                     onChanged: (value) => setState(() => _role = value ?? _role),
                   ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _role == 'admin'
+                        ? ''
+                        : (branches.any((branch) => branch.id == _branchId)
+                            ? _branchId
+                            : (branches.isNotEmpty ? branches.first.id : '')),
+                    decoration: const InputDecoration(labelText: 'Bayi', border: OutlineInputBorder()),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('Bayi yok')),
+                      ...branches.map((branch) => DropdownMenuItem(value: branch.id, child: Text(branch.name))),
+                    ],
+                    onChanged: _role == 'admin' ? null : (value) => setState(() => _branchId = value ?? _branchId),
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -93,11 +152,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                         final name = _nameController.text.trim();
                         final username = _usernameController.text.trim();
                         if (name.isEmpty || username.isEmpty) return;
-                        auth.upsertUser(name: name, username: username, role: _role, password: '1234');
+                        auth.upsertUser(
+                          name: name,
+                          username: username,
+                          role: _role,
+                          password: '1234',
+                          branchId: _role == 'admin' ? '' : _branchId,
+                        );
                         setState(() {
                           _nameController.clear();
                           _usernameController.clear();
                           _role = 'staff';
+                          _branchId = branches.isNotEmpty ? branches.first.id : defaultBranchMainId;
                         });
                       },
                       child: const Text('Yetkili Ekle'),
@@ -108,7 +174,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     (user) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(user.name),
-                      subtitle: Text('@${user.username}'),
+                      subtitle: Text('@${user.username} • ${_branchLabel(branches, user.branchId)}'),
                       trailing: Wrap(
                         spacing: 8,
                         children: [
@@ -157,4 +223,11 @@ String _roleLabel(String role) {
     default:
       return role;
   }
+}
+
+String _branchLabel(List<Branch> branches, String branchId) {
+  if (branchId.isEmpty) return 'Bayi yok';
+  final branch = branches.where((b) => b.id == branchId).toList();
+  if (branch.isEmpty) return 'Bilinmeyen bayi';
+  return branch.first.name;
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/branches_repo.dart';
 import '../../data/local/hive_boxes.dart';
 import '../../data/models/models.dart';
 
@@ -17,6 +18,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   String? selectedId;
   final qtyC = TextEditingController(text: '1');
   final reasonC = TextEditingController(text: 'stock_in');
+  String _selectedBranchId = '';
 
   @override
   void dispose() {
@@ -30,18 +32,40 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(productsSeedProvider);
+    ref.watch(branchesSeedProvider);
 
     final repo = ref.watch(productsRepoProvider);
-    final products = repo.list();
+    final auth = ref.watch(authRepoProvider);
+    final role = auth.getRole();
+    final userBranchId = auth.getBranchId();
+    final branches = ref.watch(branchesRepoProvider).list();
+    final activeBranchId = role == 'admin' ? _selectedBranchId : userBranchId;
+    final products = repo.list(branchId: activeBranchId);
 
     final movBox = HiveBoxes.box(HiveBoxes.stockMovements);
-    final moves = movBox.values.map((m) => StockMovement.fromMap(m)).toList()
+    final moves = movBox.values
+        .map((m) => StockMovement.fromMap(m))
+        .where((m) => activeBranchId.isEmpty || m.branchId == activeBranchId)
+        .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
+          if (role == 'admin')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: DropdownButtonFormField<String>(
+                value: _selectedBranchId,
+                decoration: const InputDecoration(labelText: 'Bayi filtresi', border: OutlineInputBorder()),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Tüm bayiler')),
+                  ...branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))),
+                ],
+                onChanged: (value) => setState(() => _selectedBranchId = value ?? ''),
+              ),
+            ),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -83,7 +107,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                             final delta = _d(qtyC.text);
                             final reason = reasonC.text.trim();
                             final createdBy = ref.read(authRepoProvider).currentUserId ?? 'admin';
-                            await repo.adjustStock(selectedId!, delta);
+                            await repo.adjustStock(selectedId!, delta, branchId: activeBranchId);
 
                             final mov = StockMovement(
                               id: newId(),
@@ -93,6 +117,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                               reason: reason,
                               createdAt: DateTime.now().millisecondsSinceEpoch,
                               createdBy: createdBy,
+                              branchId: activeBranchId,
                             );
                             await movBox.put(mov.id, mov.toMap());
                             setState(() {});
@@ -122,11 +147,14 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                           final m = moves[i];
                           final p = repo.getById(m.productId);
                           final sign = m.type == StockMoveType.inMove ? '+' : '-';
+                          final branchName = branches.where((b) => b.id == m.branchId).map((b) => b.name).toList();
                           return ListTile(
                             dense: true,
                             leading: Icon(m.type == StockMoveType.inMove ? Icons.add_circle_outline : Icons.remove_circle_outline),
                             title: Text(p?.name ?? m.productId),
-                            subtitle: Text('${m.reason} • ${DateTime.fromMillisecondsSinceEpoch(m.createdAt)} • ${m.createdBy}'),
+                            subtitle: Text(
+                              '${m.reason} • ${DateTime.fromMillisecondsSinceEpoch(m.createdAt)} • ${m.createdBy} • ${branchName.isNotEmpty ? branchName.first : m.branchId}',
+                            ),
                             trailing: Text('$sign${m.qty}'),
                           );
                         },

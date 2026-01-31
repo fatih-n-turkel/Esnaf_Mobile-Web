@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/auth_repo.dart';
+import '../../data/repositories/branches_repo.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
 import '../../data/models/models.dart';
@@ -15,23 +16,34 @@ class AnalysisScreen extends ConsumerStatefulWidget {
 
 class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   String _query = '';
+  String _selectedBranchId = '';
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
+    final userBranchId = auth.getBranchId();
     final canSee = role == 'admin' || role == 'manager';
 
     if (!canSee) {
       return const Center(child: Text('Bu sayfa sadece admin ve müdür kullanıcılar içindir.'));
     }
 
+    ref.watch(branchesSeedProvider);
+    final branches = ref.watch(branchesRepoProvider).list();
+    final activeBranchId = role == 'admin' ? _selectedBranchId : userBranchId;
     final salesRepo = ref.watch(salesRepoProvider);
-    final products = ref.watch(productsRepoProvider).list();
-    final sales = salesRepo.listRecent(limit: 500);
+    final products = ref.watch(productsRepoProvider).list(branchId: activeBranchId);
+    final sales = salesRepo.listRecent(limit: 500).where((sale) {
+      if (activeBranchId.isEmpty) return true;
+      return sale.branchId == activeBranchId;
+    }).toList();
     final totalStock = products.fold<double>(0, (sum, p) => sum + p.stockQty);
 
-    final personnel = auth.listUsers().where((u) => u.role == 'staff').toList();
+    final personnel = auth
+        .listUsers()
+        .where((u) => u.role == 'staff' && (activeBranchId.isEmpty || u.branchId == activeBranchId))
+        .toList();
     final filteredPersonnel = personnel
         .where((person) => _query.isEmpty || person.name.toLowerCase().contains(_query) || person.username.toLowerCase().contains(_query))
         .toList();
@@ -43,6 +55,18 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           const Text('Analiz', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           const Text('Günlükten yıllığa satış, stok, kâr ve zarar analizi.', style: TextStyle(color: Colors.black54)),
+          if (role == 'admin') ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedBranchId,
+              decoration: const InputDecoration(labelText: 'Bayi filtresi', border: OutlineInputBorder()),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Tüm bayiler')),
+                ...branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))),
+              ],
+              onChanged: (value) => setState(() => _selectedBranchId = value ?? ''),
+            ),
+          ],
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -80,6 +104,73 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Bayi Analizleri', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  ...branches.where((b) => activeBranchId.isEmpty || b.id == activeBranchId).map((branch) {
+                    final branchSales = salesRepo.listRecent(limit: 500).where((sale) => sale.branchId == branch.id).toList();
+                    final branchProducts = ref.watch(productsRepoProvider).list(branchId: branch.id);
+                    final branchStock = branchProducts.fold<double>(0, (sum, p) => sum + p.stockQty);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
+                        color: Colors.grey.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(branch.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 4),
+                              Text('Toplam satış: ${branchSales.length} • Stok: ${branchStock.toStringAsFixed(0)}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: analyticsPeriods.map((period) {
+                                  final summary = _calcSummary(salesRepo, branchSales, period);
+                                  return SizedBox(
+                                    width: 180,
+                                    child: Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(period.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                            const SizedBox(height: 4),
+                                            Text('Ciro: ${_fmtMoney(summary.revenue)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Kâr: ${_fmtMoney(summary.profit)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Zarar: ${_fmtMoney(summary.loss)}',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text('Satış: ${summary.soldQty.toStringAsFixed(0)} adet',
+                                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text('Personel Satışları & Performans', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   TextField(
@@ -100,6 +191,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     final lastSaleAt = personSales.isEmpty
                         ? null
                         : DateTime.fromMillisecondsSinceEpoch(personSales.first.createdAt);
+                    final branchName = branches.where((b) => b.id == person.branchId).map((b) => b.name).toList();
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -118,6 +210,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                                     children: [
                                       Text(person.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                                       Text('@${person.username}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                      if (branchName.isNotEmpty)
+                                        Text(branchName.first, style: const TextStyle(fontSize: 11, color: Colors.black45)),
                                     ],
                                   ),
                                   Column(

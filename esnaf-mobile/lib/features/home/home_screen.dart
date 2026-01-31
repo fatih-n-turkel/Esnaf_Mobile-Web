@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/sales_repo.dart';
+import '../../data/repositories/auth_repo.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -16,10 +17,19 @@ class HomeScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Seed error: $e')),
       data: (_) {
+        final auth = ref.watch(authRepoProvider);
+        final role = auth.getRole();
+        final branchId = auth.getBranchId();
         final salesRepo = ref.watch(salesRepoProvider);
-        final sales = salesRepo.listRecent(limit: 10);
-        final salesAll = salesRepo.listRecent(limit: 200);
-        final products = ref.watch(productsRepoProvider).list();
+        final sales = salesRepo
+            .listRecent(limit: 10)
+            .where((s) => role == 'admin' || branchId.isEmpty || s.branchId == branchId)
+            .toList();
+        final salesAll = salesRepo
+            .listRecent(limit: 200)
+            .where((s) => role == 'admin' || branchId.isEmpty || s.branchId == branchId)
+            .toList();
+        final products = ref.watch(productsRepoProvider).list(branchId: branchId);
         final critical = products.where((p) => p.stockQty <= p.criticalStock).toList();
         final today = DateTime.now();
         final todaySales = salesAll.where((s) {

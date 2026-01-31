@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/store/auth";
 import { getDemoUsers, roleLabel, saveDemoUsers } from "@/lib/auth";
 import { Branch, DemoUser, Role } from "@/lib/types";
@@ -294,18 +293,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-2">
-        <div className="font-medium">Müdür Analizi</div>
-        <p className="text-xs text-zinc-500">
-          Müdürlerin görebildiği performans, stok ve satış analizleri burada özetlenir.
-        </p>
-        <Link
-          href="/analysis"
-          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white"
-        >
-          Müdür Analizine Git
-        </Link>
-      </div>
     </div>
   );
 }

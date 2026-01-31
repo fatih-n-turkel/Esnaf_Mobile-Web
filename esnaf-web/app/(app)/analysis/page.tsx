@@ -186,42 +186,6 @@ export default function AnalysisPage() {
         })}
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
-        <div>
-          <div className="font-medium">Bayi Analizleri</div>
-          <p className="text-xs text-zinc-500">
-            Bayilerin günlük, aylık, çeyreklik ve yıllık rapor kırılımları.
-          </p>
-        </div>
-        <div className="space-y-4">
-          {branchSummaries.map(({ branch, branchSales, branchStock, analytics }) => (
-            <div key={branch.id} className="rounded-xl border bg-zinc-50 p-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="font-medium">{branch.name}</div>
-                  <div className="text-xs text-zinc-500">
-                    Toplam satış: {branchSales.length} • Stok: {branchStock} adet
-                  </div>
-                </div>
-                <div className="text-xs text-zinc-500">{branchLabel(branches, branch.id)}</div>
-              </div>
-              <div className="grid gap-2 md:grid-cols-5">
-                {analytics.map(({ period, summary }) => (
-                  <div key={period.key} className="rounded-lg border bg-white px-3 py-2 text-xs">
-                    <div className="font-medium">{period.label}</div>
-                    <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
-                    <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
-                    <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
-                    <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          {!branchSummaries.length && <div className="text-sm text-zinc-500">Bayi bulunamadı.</div>}
-        </div>
-      </div>
-
       {user?.role === "ADMİN" && (
         <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
           <div>
@@ -347,6 +311,42 @@ export default function AnalysisPage() {
             <div className="text-xs text-zinc-500">Zarar</div>
             <div className="text-lg font-semibold text-rose-600">{fmtTRY(financialSummary.loss)}</div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
+        <div>
+          <div className="font-medium">Bayi Analizleri</div>
+          <p className="text-xs text-zinc-500">
+            Bayilerin günlük, aylık, çeyreklik ve yıllık rapor kırılımları.
+          </p>
+        </div>
+        <div className="space-y-4">
+          {branchSummaries.map(({ branch, branchSales, branchStock, analytics }) => (
+            <div key={branch.id} className="rounded-xl border bg-zinc-50 p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="font-medium">{branch.name}</div>
+                  <div className="text-xs text-zinc-500">
+                    Toplam satış: {branchSales.length} • Stok: {branchStock} adet
+                  </div>
+                </div>
+                <div className="text-xs text-zinc-500">{branchLabel(branches, branch.id)}</div>
+              </div>
+              <div className="grid gap-2 md:grid-cols-5">
+                {analytics.map(({ period, summary }) => (
+                  <div key={period.key} className="rounded-lg border bg-white px-3 py-2 text-xs">
+                    <div className="font-medium">{period.label}</div>
+                    <div className="text-zinc-500 mt-1">Ciro: {fmtTRY(summary.revenue)}</div>
+                    <div className="text-zinc-500">Kâr: {fmtTRY(summary.profit)}</div>
+                    <div className="text-zinc-500">Zarar: {fmtTRY(summary.loss)}</div>
+                    <div className="text-zinc-500">Satış: {summary.soldQty} adet</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {!branchSummaries.length && <div className="text-sm text-zinc-500">Bayi bulunamadı.</div>}
         </div>
       </div>
 

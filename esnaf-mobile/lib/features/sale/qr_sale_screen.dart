@@ -61,8 +61,9 @@ class _QRSaleScreenState extends ConsumerState<QRSaleScreen> {
 
               final normalized = v.trim().toLowerCase();
               final branchId = ref.read(authRepoProvider).getBranchId();
+              final businessId = ref.read(authRepoProvider).getBusinessId();
               final repo = ref.read(productsRepoProvider);
-              final products = repo.list(branchId: branchId);
+              final products = repo.list(branchId: branchId, businessId: businessId);
               Product? found;
               for (final p in products) {
                 if (p.qrValue.trim().toLowerCase() == normalized) {

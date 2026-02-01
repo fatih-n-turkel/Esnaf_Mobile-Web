@@ -6,24 +6,32 @@ import { Branch, Product } from "@/lib/types";
 import { fmtTRY } from "@/lib/money";
 import { getBranchStock, sumBranchStock } from "@/lib/branches";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchProducts() {
-  const r = await fetch("/api/products", { cache: "no-store" });
+async function fetchProducts(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/products", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchBranches() {
-  const r = await fetch("/api/branches", { cache: "no-store" });
+async function fetchBranches(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function StockPage() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
-  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
+  const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({
+    queryKey: ["products", businessId],
+    queryFn: () => fetchProducts(businessId),
+  });
+  const { data: branchData } = useQuery({
+    queryKey: ["branches", businessId],
+    queryFn: () => fetchBranches(businessId),
+  });
   const products: Product[] = data?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
-  const user = useAuth((state) => state.user);
   const canEdit = user?.role === "ADMİN" || user?.role === "MÜDÜR";
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const activeBranchId = user?.role === "ADMİN" ? selectedBranchId : user?.branchId ?? null;
@@ -110,7 +118,7 @@ export default function StockPage() {
       alert(err?.error ?? "Stok güncellenemedi.");
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["products"] });
+    await qc.invalidateQueries({ queryKey: ["products", businessId] });
     setEditProduct(null);
   }
 

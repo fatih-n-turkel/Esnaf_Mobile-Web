@@ -30,12 +30,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget build(BuildContext context) {
     ref.watch(branchesSeedProvider);
     final auth = ref.watch(authRepoProvider);
+    final businessId = auth.getBusinessId();
     final notifications = ref.watch(notificationsRepoProvider);
-    final branches = ref.watch(branchesRepoProvider).list();
+    final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
     final scopeNotes = notifications.list(
       branchId: auth.getBranchId(),
       userId: auth.currentUserId,
       role: auth.getRole(),
+      businessId: businessId,
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -43,6 +45,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         branchId: auth.getBranchId(),
         userId: auth.currentUserId,
         role: auth.getRole(),
+        businessId: businessId,
       );
     });
 

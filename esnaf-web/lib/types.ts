@@ -21,8 +21,18 @@ export type Business = {
   name: string;
   planId: string;
   billingCycle: BillingCycle;
-  paymentMethod?: string | null;
+  paymentMethods?: PaymentMethod[];
   createdAt: string;
+};
+
+export type PaymentMethod = {
+  id: string;
+  label: string;
+  holderName: string;
+  cardNumber: string;
+  expMonth: string;
+  expYear: string;
+  cvc: string;
 };
 
 export type BusinessApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";

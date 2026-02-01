@@ -27,14 +27,26 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   bool _showPlanDetails = false;
   String? _selectedPlanId;
   String _billingCycle = 'MONTHLY';
-  final _paymentController = TextEditingController();
+  bool _showCardForm = false;
+  String? _editingCardId;
+  final _cardLabelController = TextEditingController();
+  final _cardHolderController = TextEditingController();
+  final _cardNumberController = TextEditingController();
+  final _cardExpMonthController = TextEditingController();
+  final _cardExpYearController = TextEditingController();
+  final _cardCvcController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
     _usernameController.dispose();
     _branchController.dispose();
-    _paymentController.dispose();
+    _cardLabelController.dispose();
+    _cardHolderController.dispose();
+    _cardNumberController.dispose();
+    _cardExpMonthController.dispose();
+    _cardExpYearController.dispose();
+    _cardCvcController.dispose();
     super.dispose();
   }
 
@@ -62,11 +74,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final plansRepo = ref.watch(plansRepoProvider);
     final business = businessRepo.getById(businessId);
     final plans = plansRepo.list();
+    final paymentMethods = business?.paymentMethods ?? [];
 
     if (business != null) {
       _selectedPlanId ??= business.planId;
       _billingCycle = business.billingCycle;
-      _paymentController.text = business.paymentMethod ?? '';
     }
 
     return Padding(
@@ -138,7 +150,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                             planId: _selectedPlanId!,
                             billingCycle: _selectedPlanId == 'plan-free' ? 'FREE' : _billingCycle,
                             createdAt: business.createdAt,
-                            paymentMethod: business.paymentMethod,
+                            paymentMethods: business.paymentMethods,
                           ),
                         );
                         setState(() {});
@@ -159,28 +171,161 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 children: [
                   const Text('Ödeme Yöntemleri', style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _paymentController,
-                    decoration: const InputDecoration(labelText: 'Kart bilgisi / ödeme yöntemi'),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () async {
-                      if (business == null) return;
-                      await businessRepo.upsert(
-                        Business(
-                          id: business.id,
-                          name: business.name,
-                          planId: business.planId,
-                          billingCycle: business.billingCycle,
-                          createdAt: business.createdAt,
-                          paymentMethod: _paymentController.text.trim(),
+                  if (paymentMethods.isEmpty)
+                    const Text('Henüz ödeme yöntemi yok.', style: TextStyle(color: Colors.black54)),
+                  ...paymentMethods.map((method) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(method.label),
+                        subtitle: Text(
+                          '${method.holderName} • ${method.cardNumber} • ${method.expMonth}/${method.expYear} • CVC ${method.cvc}',
                         ),
-                      );
-                      setState(() {});
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          setState(() {
+                            _editingCardId = method.id;
+                            _cardLabelController.text = method.label;
+                            _cardHolderController.text = method.holderName;
+                            _cardNumberController.text = method.cardNumber;
+                            _cardExpMonthController.text = method.expMonth;
+                            _cardExpYearController.text = method.expYear;
+                            _cardCvcController.text = method.cvc;
+                            _showCardForm = true;
+                          });
+                        },
+                        ),
+                      )),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _editingCardId = null;
+                        _cardLabelController.clear();
+                        _cardHolderController.clear();
+                        _cardNumberController.clear();
+                        _cardExpMonthController.clear();
+                        _cardExpYearController.clear();
+                        _cardCvcController.clear();
+                        _showCardForm = true;
+                      });
                     },
-                    child: const Text('Ödeme Yöntemini Kaydet'),
+                    child: const Text('Ödeme Yöntemi Ekle'),
                   ),
+                  if (_showCardForm) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Kart adı'),
+                      controller: _cardLabelController,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Kart sahibi adı soyadı'),
+                      controller: _cardHolderController,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Kart numarası'),
+                      controller: _cardNumberController,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Son kullanım ay'),
+                      controller: _cardExpMonthController,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Son kullanım yıl'),
+                      controller: _cardExpYearController,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'CVC'),
+                      controller: _cardCvcController,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (business == null) return;
+                            final next = _editingCardId == null
+                                ? [
+                                    ...paymentMethods,
+                                    PaymentMethod(
+                                      id: newId(),
+                                      label: _cardLabelController.text.trim(),
+                                      holderName: _cardHolderController.text.trim(),
+                                      cardNumber: _cardNumberController.text.trim(),
+                                      expMonth: _cardExpMonthController.text.trim(),
+                                      expYear: _cardExpYearController.text.trim(),
+                                      cvc: _cardCvcController.text.trim(),
+                                    ),
+                                  ]
+                                : paymentMethods
+                                    .map(
+                                      (method) => method.id == _editingCardId
+                                          ? PaymentMethod(
+                                              id: method.id,
+                                              label: _cardLabelController.text.trim(),
+                                              holderName: _cardHolderController.text.trim(),
+                                              cardNumber: _cardNumberController.text.trim(),
+                                              expMonth: _cardExpMonthController.text.trim(),
+                                              expYear: _cardExpYearController.text.trim(),
+                                              cvc: _cardCvcController.text.trim(),
+                                            )
+                                          : method,
+                                    )
+                                    .toList();
+                            await businessRepo.upsert(
+                              Business(
+                                id: business.id,
+                                name: business.name,
+                                planId: business.planId,
+                                billingCycle: business.billingCycle,
+                                createdAt: business.createdAt,
+                                paymentMethods: next,
+                              ),
+                            );
+                            setState(() {
+                              _showCardForm = false;
+                              _editingCardId = null;
+                            });
+                          },
+                          child: const Text('Kaydet'),
+                        ),
+                        if (_editingCardId != null)
+                          TextButton(
+                            onPressed: () async {
+                              if (business == null) return;
+                              final next = paymentMethods.where((m) => m.id != _editingCardId).toList();
+                              await businessRepo.upsert(
+                                Business(
+                                  id: business.id,
+                                  name: business.name,
+                                  planId: business.planId,
+                                  billingCycle: business.billingCycle,
+                                  createdAt: business.createdAt,
+                                  paymentMethods: next,
+                                ),
+                              );
+                              setState(() {
+                                _showCardForm = false;
+                                _editingCardId = null;
+                              });
+                            },
+                            child: const Text('Kartı Sil', style: TextStyle(color: Colors.red)),
+                          ),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _showCardForm = false;
+                            _editingCardId = null;
+                          }),
+                          child: const Text('İptal'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -477,7 +622,10 @@ class _SystemAdminViewState extends ConsumerState<_SystemAdminView> {
                             Text('Plan: ${plan.name} • ${biz.billingCycle}', style: const TextStyle(fontSize: 12)),
                             Text('Aylık: ₺${plan.monthlyPrice.toStringAsFixed(0)} • Yıllık: ₺${plan.annualPrice.toStringAsFixed(0)}',
                                 style: const TextStyle(fontSize: 12)),
-                            Text('Ödeme yöntemi: ${biz.paymentMethod ?? '-'}', style: const TextStyle(fontSize: 12)),
+                            Text(
+                              'Ödeme yöntemi: ${biz.paymentMethods != null && biz.paymentMethods!.isNotEmpty ? biz.paymentMethods!.first.label : '-'}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             const SizedBox(height: 8),
                             const Text('Hesaplar', style: TextStyle(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),

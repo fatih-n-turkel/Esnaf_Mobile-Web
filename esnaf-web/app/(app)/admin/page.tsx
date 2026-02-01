@@ -36,7 +36,16 @@ export default function AdminPage() {
   const [showPlanDetails, setShowPlanDetails] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<"MONTHLY" | "ANNUAL" | "FREE">("MONTHLY");
-  const [paymentMethod, setPaymentMethod] = useState("");
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardForm, setCardForm] = useState({
+    label: "",
+    holderName: "",
+    cardNumber: "",
+    expMonth: "",
+    expYear: "",
+    cvc: "",
+  });
 
   const isSystemAdmin = user?.role === "YONETIM";
   const canManage = user?.role === "ADMİN" || user?.role === "YONETIM";
@@ -110,12 +119,12 @@ export default function AdminPage() {
     if (!current) return;
     setSelectedPlanId(current.planId);
     setSelectedCycle(current.billingCycle === "FREE" ? "FREE" : current.billingCycle);
-    setPaymentMethod(current.paymentMethod ?? "");
   }, [businesses, user]);
 
   const managers = useMemo(() => users.filter((u) => u.role === "MÜDÜR"), [users]);
   const currentBusiness = businesses.find((b) => b.id === user?.businessId);
   const currentPlan = plans.find((plan) => plan.id === currentBusiness?.planId);
+  const paymentMethods = currentBusiness?.paymentMethods ?? [];
 
   const revenueSummary = useMemo(() => {
     const now = Date.now();
@@ -172,7 +181,9 @@ export default function AdminPage() {
                           Aylık ödeme: {fmtTRY(plan.monthlyPrice)} • Yıllık: {fmtTRY(plan.annualPrice)}
                         </div>
                       )}
-                      <div className="text-xs text-zinc-500">Ödeme yöntemi: {biz.paymentMethod ?? "-"}</div>
+                      <div className="text-xs text-zinc-500">
+                        Ödeme yöntemi: {biz.paymentMethods?.[0]?.label ?? "-"}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -552,30 +563,157 @@ export default function AdminPage() {
           <div className="font-medium">Ödeme Yöntemleri</div>
           <p className="text-xs text-zinc-500">Kart bilgisi veya tahsilat yöntemi.</p>
         </div>
-        <input
-          className="rounded-lg border px-3 py-2 text-sm"
-          placeholder="Örn: Visa •••• 3281"
-          value={paymentMethod}
-          onChange={(event) => setPaymentMethod(event.target.value)}
-        />
+        <div className="space-y-2">
+          {paymentMethods.map((method) => (
+            <div key={method.id} className="flex items-center justify-between rounded-xl border bg-slate-50 px-3 py-2 text-xs">
+              <div>
+                <div className="font-medium">{method.label}</div>
+                <div className="text-[11px] text-slate-500">
+                  {method.holderName} • {method.cardNumber} • {method.expMonth}/{method.expYear}
+                </div>
+                <div className="text-[11px] text-slate-400">CVC: {method.cvc}</div>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg border px-2 py-1"
+                onClick={() => {
+                  setEditingCardId(method.id);
+                  setCardForm({
+                    label: method.label,
+                    holderName: method.holderName,
+                    cardNumber: method.cardNumber,
+                    expMonth: method.expMonth,
+                    expYear: method.expYear,
+                    cvc: method.cvc,
+                  });
+                  setShowCardForm(true);
+                }}
+                aria-label="Kartı düzenle"
+                title="Kartı düzenle"
+              >
+                ✏️
+              </button>
+            </div>
+          ))}
+          {!paymentMethods.length && <div className="text-xs text-zinc-500">Henüz ödeme yöntemi yok.</div>}
+        </div>
         <button
           type="button"
-          className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
-          onClick={async () => {
-            if (!currentBusiness) return;
-            await fetch(`/api/businesses/${currentBusiness.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentMethod: paymentMethod.trim() || null }),
-            });
-            const refreshed = await fetch("/api/businesses", { cache: "no-store" }).then((r) =>
-              r.ok ? r.json() : { items: [] }
-            );
-            setBusinesses(refreshed.items ?? []);
+          className="rounded-lg border px-3 py-2 text-sm"
+          onClick={() => {
+            setEditingCardId(null);
+            setCardForm({ label: "", holderName: "", cardNumber: "", expMonth: "", expYear: "", cvc: "" });
+            setShowCardForm(true);
           }}
         >
-          Ödeme Yöntemini Kaydet
+          Ödeme Yöntemi Ekle
         </button>
+        {showCardForm && (
+          <div className="rounded-xl border bg-white p-3 text-xs space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="Kart adı"
+                value={cardForm.label}
+                onChange={(event) => setCardForm({ ...cardForm, label: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="Kart sahibi adı soyadı"
+                value={cardForm.holderName}
+                onChange={(event) => setCardForm({ ...cardForm, holderName: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="Kart no"
+                value={cardForm.cardNumber}
+                onChange={(event) => setCardForm({ ...cardForm, cardNumber: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="CVC"
+                value={cardForm.cvc}
+                onChange={(event) => setCardForm({ ...cardForm, cvc: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="Son kullanım ay"
+                value={cardForm.expMonth}
+                onChange={(event) => setCardForm({ ...cardForm, expMonth: event.target.value })}
+              />
+              <input
+                className="rounded-lg border px-2 py-1"
+                placeholder="Son kullanım yıl"
+                value={cardForm.expYear}
+                onChange={(event) => setCardForm({ ...cardForm, expYear: event.target.value })}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-zinc-900 text-white px-3 py-1"
+                onClick={async () => {
+                  if (!currentBusiness) return;
+                  if (!cardForm.label.trim()) return;
+                  const updated = editingCardId
+                    ? paymentMethods.map((method) =>
+                        method.id === editingCardId ? { ...method, ...cardForm } : method
+                      )
+                    : [
+                        ...paymentMethods,
+                        { id: `pm-${Date.now()}`, ...cardForm },
+                      ];
+                  await fetch(`/api/businesses/${currentBusiness.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ paymentMethods: updated }),
+                  });
+                  const refreshed = await fetch("/api/businesses", { cache: "no-store" }).then((r) =>
+                    r.ok ? r.json() : { items: [] }
+                  );
+                  setBusinesses(refreshed.items ?? []);
+                  setShowCardForm(false);
+                  setEditingCardId(null);
+                }}
+              >
+                Kaydet
+              </button>
+              {editingCardId && (
+                <button
+                  type="button"
+                  className="rounded-lg border px-3 py-1 text-rose-600"
+                  onClick={async () => {
+                    if (!currentBusiness) return;
+                    const updated = paymentMethods.filter((method) => method.id !== editingCardId);
+                    await fetch(`/api/businesses/${currentBusiness.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ paymentMethods: updated }),
+                    });
+                    const refreshed = await fetch("/api/businesses", { cache: "no-store" }).then((r) =>
+                      r.ok ? r.json() : { items: [] }
+                    );
+                    setBusinesses(refreshed.items ?? []);
+                    setShowCardForm(false);
+                    setEditingCardId(null);
+                  }}
+                >
+                  Kartı Sil
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-lg border px-3 py-1"
+                onClick={() => {
+                  setShowCardForm(false);
+                  setEditingCardId(null);
+                }}
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">

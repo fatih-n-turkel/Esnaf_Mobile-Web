@@ -17,10 +17,20 @@ class BusinessRepo {
       Business(
         id: 'biz-sen-bakkal',
         name: 'Şen Bakkal',
-        planId: 'plan-pro',
+        planId: 'plan-basic',
         billingCycle: 'MONTHLY',
         createdAt: now,
-        paymentMethod: 'Visa •••• 3281',
+        paymentMethods: [
+          PaymentMethod(
+            id: newId(),
+            label: 'Ana Kart',
+            holderName: 'Fatih Yılmaz',
+            cardNumber: '4111 1111 1111 3281',
+            expMonth: '12',
+            expYear: '2027',
+            cvc: '123',
+          ),
+        ],
       ),
       Business(
         id: 'biz-sen-kasap',
@@ -28,6 +38,7 @@ class BusinessRepo {
         planId: 'plan-free',
         billingCycle: 'FREE',
         createdAt: now,
+        paymentMethods: [],
       ),
     ];
     for (final biz in items) {

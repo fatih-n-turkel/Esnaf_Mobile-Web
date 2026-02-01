@@ -484,7 +484,7 @@ class Business {
     required this.planId,
     required this.billingCycle,
     required this.createdAt,
-    this.paymentMethod,
+    this.paymentMethods,
   });
 
   final String id;
@@ -492,7 +492,7 @@ class Business {
   final String planId;
   final String billingCycle;
   final int createdAt;
-  final String? paymentMethod;
+  final List<PaymentMethod>? paymentMethods;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -500,7 +500,7 @@ class Business {
         'planId': planId,
         'billingCycle': billingCycle,
         'createdAt': createdAt,
-        'paymentMethod': paymentMethod,
+        'paymentMethods': paymentMethods?.map((method) => method.toMap()).toList() ?? [],
       };
 
   factory Business.fromMap(Map m) => Business(
@@ -509,7 +509,50 @@ class Business {
         planId: (m['planId'] ?? '') as String,
         billingCycle: (m['billingCycle'] ?? 'FREE') as String,
         createdAt: (m['createdAt'] ?? 0) as int,
-        paymentMethod: m['paymentMethod'] as String?,
+        paymentMethods: (m['paymentMethods'] as List?)
+                ?.map((entry) => PaymentMethod.fromMap(entry as Map))
+                .toList() ??
+            [],
+      );
+}
+
+class PaymentMethod {
+  PaymentMethod({
+    required this.id,
+    required this.label,
+    required this.holderName,
+    required this.cardNumber,
+    required this.expMonth,
+    required this.expYear,
+    required this.cvc,
+  });
+
+  final String id;
+  final String label;
+  final String holderName;
+  final String cardNumber;
+  final String expMonth;
+  final String expYear;
+  final String cvc;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'holderName': holderName,
+        'cardNumber': cardNumber,
+        'expMonth': expMonth,
+        'expYear': expYear,
+        'cvc': cvc,
+      };
+
+  factory PaymentMethod.fromMap(Map m) => PaymentMethod(
+        id: (m['id'] ?? '') as String,
+        label: (m['label'] ?? '') as String,
+        holderName: (m['holderName'] ?? '') as String,
+        cardNumber: (m['cardNumber'] ?? '') as String,
+        expMonth: (m['expMonth'] ?? '') as String,
+        expYear: (m['expYear'] ?? '') as String,
+        cvc: (m['cvc'] ?? '') as String,
       );
 }
 

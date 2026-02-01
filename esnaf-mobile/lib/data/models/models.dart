@@ -13,28 +13,32 @@ enum StockMoveType { inMove, outMove, adjust }
 enum NotificationScope { global, branch, user }
 
 class Branch {
-  Branch({required this.id, required this.name, required this.createdAt});
+  Branch({required this.id, required this.name, required this.createdAt, required this.businessId});
 
   final String id;
   final String name;
   final int createdAt;
+  final String businessId;
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
         'createdAt': createdAt,
+        'businessId': businessId,
       };
 
   factory Branch.fromMap(Map m) => Branch(
         id: (m['id'] ?? '') as String,
         name: (m['name'] ?? '') as String,
         createdAt: (m['createdAt'] ?? 0) as int,
+        businessId: (m['businessId'] ?? '') as String,
       );
 }
 
 class Product {
   Product({
     required this.id,
+    required this.businessId,
     required this.name,
     required this.category,
     required this.salePrice,
@@ -49,6 +53,7 @@ class Product {
   });
 
   final String id;
+  final String businessId;
   final String name;
   final String category;
   final double salePrice;
@@ -63,6 +68,7 @@ class Product {
 
   Map<String, dynamic> toMap() => {
         'id': id,
+        'businessId': businessId,
         'name': name,
         'category': category,
         'salePrice': salePrice,
@@ -78,6 +84,7 @@ class Product {
 
   static Product fromMap(Map m) => Product(
         id: m['id'] as String,
+        businessId: (m['businessId'] ?? '') as String,
         name: m['name'] as String,
         category: (m['category'] ?? '') as String,
         salePrice: (m['salePrice'] ?? 0).toDouble(),
@@ -108,6 +115,7 @@ class Product {
   }) =>
       Product(
         id: id,
+        businessId: businessId,
         name: name ?? this.name,
         category: category ?? this.category,
         salePrice: salePrice ?? this.salePrice,
@@ -125,6 +133,7 @@ class Product {
 class Sale {
   Sale({
     required this.id,
+    required this.businessId,
     required this.receiptNo,
     required this.paymentType,
     required this.posFeeType,
@@ -139,6 +148,7 @@ class Sale {
   });
 
   final String id;
+  final String businessId;
   final String receiptNo;
   final PaymentType paymentType;
   final PosFeeType posFeeType;
@@ -153,6 +163,7 @@ class Sale {
 
   Map<String, dynamic> toMap() => {
         'id': id,
+        'businessId': businessId,
         'receiptNo': receiptNo,
         'paymentType': paymentType.name,
         'posFeeType': posFeeType.name,
@@ -168,6 +179,7 @@ class Sale {
 
   static Sale fromMap(Map m) => Sale(
         id: m['id'] as String,
+        businessId: (m['businessId'] ?? '') as String,
         receiptNo: (m['receiptNo'] ?? '') as String,
         paymentType: PaymentType.values.firstWhere((e) => e.name == (m['paymentType'] ?? 'cash')),
         posFeeType: PosFeeType.values.firstWhere((e) => e.name == (m['posFeeType'] ?? 'percent')),
@@ -242,6 +254,7 @@ class StockMovement {
     required this.createdAt,
     required this.createdBy,
     required this.branchId,
+    required this.businessId,
   });
 
   final String id;
@@ -252,6 +265,7 @@ class StockMovement {
   final int createdAt;
   final String createdBy;
   final String branchId;
+  final String businessId;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -262,6 +276,7 @@ class StockMovement {
         'createdAt': createdAt,
         'createdBy': createdBy,
         'branchId': branchId,
+        'businessId': businessId,
       };
 
   static StockMovement fromMap(Map m) => StockMovement(
@@ -273,6 +288,7 @@ class StockMovement {
         createdAt: (m['createdAt'] ?? 0) as int,
         createdBy: (m['createdBy'] ?? 'admin') as String,
         branchId: (m['branchId'] ?? '') as String,
+        businessId: (m['businessId'] ?? '') as String,
       );
 }
 
@@ -359,6 +375,7 @@ class AppNotification {
     required this.message,
     required this.createdAt,
     required this.scope,
+    required this.businessId,
     this.readAt,
     this.branchId,
     this.userId,
@@ -370,6 +387,7 @@ class AppNotification {
   final int createdAt;
   final int? readAt;
   final NotificationScope scope;
+  final String businessId;
   final String? branchId;
   final String? userId;
 
@@ -380,6 +398,7 @@ class AppNotification {
         'createdAt': createdAt,
         'readAt': readAt,
         'scope': scope.name,
+        'businessId': businessId,
         'branchId': branchId,
         'userId': userId,
       };
@@ -394,7 +413,181 @@ class AppNotification {
           (e) => e.name == (m['scope'] ?? 'global'),
           orElse: () => NotificationScope.global,
         ),
+        businessId: (m['businessId'] ?? '') as String,
         branchId: m['branchId'] as String?,
         userId: m['userId'] as String?,
+      );
+}
+
+class BusinessPlan {
+  BusinessPlan({
+    required this.id,
+    required this.name,
+    required this.monthlyPrice,
+    required this.annualPrice,
+    required this.maxEmployees,
+    required this.maxBranches,
+    required this.features,
+  });
+
+  final String id;
+  final String name;
+  final double monthlyPrice;
+  final double annualPrice;
+  final int maxEmployees;
+  final int maxBranches;
+  final List<String> features;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'monthlyPrice': monthlyPrice,
+        'annualPrice': annualPrice,
+        'maxEmployees': maxEmployees,
+        'maxBranches': maxBranches,
+        'features': features,
+      };
+
+  factory BusinessPlan.fromMap(Map m) => BusinessPlan(
+        id: (m['id'] ?? '') as String,
+        name: (m['name'] ?? '') as String,
+        monthlyPrice: (m['monthlyPrice'] ?? 0).toDouble(),
+        annualPrice: (m['annualPrice'] ?? 0).toDouble(),
+        maxEmployees: (m['maxEmployees'] ?? 0) as int,
+        maxBranches: (m['maxBranches'] ?? 0) as int,
+        features: (m['features'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      );
+
+  BusinessPlan copyWith({
+    double? monthlyPrice,
+    double? annualPrice,
+    int? maxEmployees,
+    int? maxBranches,
+    List<String>? features,
+  }) {
+    return BusinessPlan(
+      id: id,
+      name: name,
+      monthlyPrice: monthlyPrice ?? this.monthlyPrice,
+      annualPrice: annualPrice ?? this.annualPrice,
+      maxEmployees: maxEmployees ?? this.maxEmployees,
+      maxBranches: maxBranches ?? this.maxBranches,
+      features: features ?? this.features,
+    );
+  }
+}
+
+class Business {
+  Business({
+    required this.id,
+    required this.name,
+    required this.planId,
+    required this.billingCycle,
+    required this.createdAt,
+    this.paymentMethods,
+  });
+
+  final String id;
+  final String name;
+  final String planId;
+  final String billingCycle;
+  final int createdAt;
+  final List<PaymentMethod>? paymentMethods;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'planId': planId,
+        'billingCycle': billingCycle,
+        'createdAt': createdAt,
+        'paymentMethods': paymentMethods?.map((method) => method.toMap()).toList() ?? [],
+      };
+
+  factory Business.fromMap(Map m) => Business(
+        id: (m['id'] ?? '') as String,
+        name: (m['name'] ?? '') as String,
+        planId: (m['planId'] ?? '') as String,
+        billingCycle: (m['billingCycle'] ?? 'FREE') as String,
+        createdAt: (m['createdAt'] ?? 0) as int,
+        paymentMethods: (m['paymentMethods'] as List?)
+                ?.map((entry) => PaymentMethod.fromMap(entry as Map))
+                .toList() ??
+            [],
+      );
+}
+
+class PaymentMethod {
+  PaymentMethod({
+    required this.id,
+    required this.label,
+    required this.holderName,
+    required this.cardNumber,
+    required this.expMonth,
+    required this.expYear,
+    required this.cvc,
+  });
+
+  final String id;
+  final String label;
+  final String holderName;
+  final String cardNumber;
+  final String expMonth;
+  final String expYear;
+  final String cvc;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'label': label,
+        'holderName': holderName,
+        'cardNumber': cardNumber,
+        'expMonth': expMonth,
+        'expYear': expYear,
+        'cvc': cvc,
+      };
+
+  factory PaymentMethod.fromMap(Map m) => PaymentMethod(
+        id: (m['id'] ?? '') as String,
+        label: (m['label'] ?? '') as String,
+        holderName: (m['holderName'] ?? '') as String,
+        cardNumber: (m['cardNumber'] ?? '') as String,
+        expMonth: (m['expMonth'] ?? '') as String,
+        expYear: (m['expYear'] ?? '') as String,
+        cvc: (m['cvc'] ?? '') as String,
+      );
+}
+
+class BusinessApplication {
+  BusinessApplication({
+    required this.id,
+    required this.businessName,
+    required this.username,
+    required this.password,
+    required this.createdAt,
+    required this.status,
+  });
+
+  final String id;
+  final String businessName;
+  final String username;
+  final String password;
+  final int createdAt;
+  final String status;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'businessName': businessName,
+        'username': username,
+        'password': password,
+        'createdAt': createdAt,
+        'status': status,
+      };
+
+  factory BusinessApplication.fromMap(Map m) => BusinessApplication(
+        id: (m['id'] ?? '') as String,
+        businessName: (m['businessName'] ?? '') as String,
+        username: (m['username'] ?? '') as String,
+        password: (m['password'] ?? '') as String,
+        createdAt: (m['createdAt'] ?? 0) as int,
+        status: (m['status'] ?? 'PENDING') as String,
       );
 }

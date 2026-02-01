@@ -19,14 +19,17 @@ class ProductsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(productsSeedProvider);
-    final role = ref.watch(authRepoProvider).getRole();
+    final auth = ref.watch(authRepoProvider);
+    final role = auth.getRole();
+    final businessId = auth.getBusinessId();
     final query = ref.watch(_pQuery);
     final onlyCritical = ref.watch(_onlyCritical);
     final selectedCategory = ref.watch(_selectedCategory);
 
     final repo = ref.watch(productsRepoProvider);
-    final products = repo.list(query: query, onlyCritical: onlyCritical, category: selectedCategory);
-    final categories = repo.categories();
+    final products =
+        repo.list(query: query, onlyCritical: onlyCritical, category: selectedCategory, businessId: businessId);
+    final categories = repo.categories(businessId: businessId);
 
     return Padding(
       padding: const EdgeInsets.all(12),

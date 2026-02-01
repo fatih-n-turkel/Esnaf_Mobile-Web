@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
-import { createSaleIdempotent, listSales } from "@/lib/mock-db";
+import { createSaleIdempotent, listBusinesses, listSales } from "@/lib/mock-db";
 import { calcSaleTotals } from "@/lib/money";
 import { Sale } from "@/lib/types";
 
-export async function GET() {
-  return NextResponse.json({ items: listSales(30) });
+function resolveBusinessId(req: Request) {
+  const businessId = new URL(req.url).searchParams.get("businessId");
+  if (businessId) return businessId;
+  return listBusinesses()[0]?.id ?? "";
+}
+
+export async function GET(req: Request) {
+  const businessId = resolveBusinessId(req);
+  return NextResponse.json({ items: listSales(businessId, 30) });
 }
 
 export async function POST(req: Request) {
+  const businessId = resolveBusinessId(req);
   const body = await req.json();
 
   const clientRequestId: string = body.clientRequestId;
@@ -26,6 +34,7 @@ export async function POST(req: Request) {
 
   const saleWithoutIds: Omit<Sale, "id" | "createdAt"> = {
     // clientRequestId route içinde overwrite edilse de tip için burada var:
+    businessId,
     clientRequestId,
     createdBy,
     branchId,

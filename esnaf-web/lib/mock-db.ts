@@ -1,16 +1,30 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { Branch, Category, Product, Sale, Settings, DemoUser, Notification } from "./types";
+import {
+  Branch,
+  Category,
+  Product,
+  Sale,
+  Settings,
+  DemoUser,
+  Notification,
+  Business,
+  BusinessPlan,
+  BusinessApplication,
+} from "./types";
 
 type DatabaseFile = {
   products: Product[];
   categories: Category[];
-  settings: Settings;
+  settings: Settings[];
   sales: Sale[];
   users: DemoUser[];
   branches: Branch[];
   notifications: Notification[];
+  businesses: Business[];
+  plans: BusinessPlan[];
+  applications: BusinessApplication[];
 };
 
 const now = () => new Date().toISOString();
@@ -34,16 +48,23 @@ function readDatabase(): DatabaseFile {
   const raw = fs.readFileSync(databaseFile, "utf8");
   try {
     const parsed = JSON.parse(raw) as DatabaseFile;
-    if (!parsed.branches || !parsed.notifications || !parsed.settings?.posFeeType) {
+    if (
+      !parsed.branches ||
+      !parsed.notifications ||
+      !Array.isArray(parsed.settings) ||
+      !parsed.businesses ||
+      !parsed.plans ||
+      !parsed.applications
+    ) {
       const seed = buildSeedDatabase();
       const merged = {
         ...parsed,
         branches: parsed.branches ?? seed.branches,
         notifications: parsed.notifications ?? seed.notifications,
-        settings: {
-          ...seed.settings,
-          ...parsed.settings,
-        },
+        settings: Array.isArray(parsed.settings) ? parsed.settings : seed.settings,
+        businesses: parsed.businesses ?? seed.businesses,
+        plans: parsed.plans ?? seed.plans,
+        applications: parsed.applications ?? seed.applications,
       };
       writeDatabase(merged);
       return merged;
@@ -61,16 +82,21 @@ function writeDatabase(next: DatabaseFile) {
 }
 
 function buildSeedDatabase(): DatabaseFile {
+  const businessBakkalId = "biz-sen-bakkal";
+  const businessKasapId = "biz-sen-kasap";
   const branchMainId = randomUUID();
   const branchCoastId = randomUUID();
+  const branchKasapId = randomUUID();
   const branches: Branch[] = [
-    { id: branchMainId, name: "Merkez Şube", createdAt: now() },
-    { id: branchCoastId, name: "Sahil Şube", createdAt: now() },
+    { id: branchMainId, name: "Merkez Şube", createdAt: now(), businessId: businessBakkalId },
+    { id: branchCoastId, name: "Sahil Şube", createdAt: now(), businessId: businessBakkalId },
+    { id: branchKasapId, name: "Ana Şube", createdAt: now(), businessId: businessKasapId },
   ];
 
   const seededProducts: Product[] = [
     {
       id: randomUUID(),
+      businessId: businessBakkalId,
       name: "Su 0.5L",
       category: "İçecek",
       salePrice: 12,
@@ -88,6 +114,7 @@ function buildSeedDatabase(): DatabaseFile {
     },
     {
       id: randomUUID(),
+      businessId: businessBakkalId,
       name: "Cips",
       category: "Atıştırmalık",
       salePrice: 25,
@@ -105,6 +132,7 @@ function buildSeedDatabase(): DatabaseFile {
     },
     {
       id: randomUUID(),
+      businessId: businessBakkalId,
       name: "Defter A4",
       category: "Kırtasiye",
       salePrice: 40,
@@ -120,23 +148,46 @@ function buildSeedDatabase(): DatabaseFile {
       isActive: true,
       updatedAt: now(),
     },
+    {
+      id: randomUUID(),
+      businessId: businessKasapId,
+      name: "Dana Kuşbaşı 1KG",
+      category: "Kasap",
+      salePrice: 420,
+      costPrice: 320,
+      vatRate: 0.01,
+      criticalStockLevel: 6,
+      stockOnHand: 24,
+      stockByBranch: {
+        [branchKasapId]: 24,
+      },
+      qrCode: "QR-KASAP-0001",
+      isActive: true,
+      updatedAt: now(),
+    },
   ];
 
   const categories: Category[] = Array.from(
     new Set(
       seededProducts
-        .map((product) => product.category)
+        .map((product) => `${product.businessId}::${product.category ?? ""}`)
         .filter((category): category is string => Boolean(category))
     )
-  ).map((name) => ({
-    id: randomUUID(),
-    name,
-    createdAt: now(),
-  }));
+  ).map((entry) => {
+    const [businessId, name] = entry.split("::");
+    return {
+      id: randomUUID(),
+      businessId,
+      name,
+      createdAt: now(),
+    };
+  });
 
   const users: DemoUser[] = [
     {
       id: "user-admin",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
       username: "fatih",
       password: "fatih",
       name: "Fatih",
@@ -146,6 +197,8 @@ function buildSeedDatabase(): DatabaseFile {
     },
     {
       id: "user-manager",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
       username: "mehmet",
       password: "mehmet",
       name: "Mehmet",
@@ -155,6 +208,8 @@ function buildSeedDatabase(): DatabaseFile {
     },
     {
       id: "user-personnel",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
       username: "cenk",
       password: "cenk",
       name: "Cenk",
@@ -163,12 +218,59 @@ function buildSeedDatabase(): DatabaseFile {
       branchId: branchMainId,
       managerId: "user-manager",
     },
+    {
+      id: "user-personnel-2",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
+      username: "ahmet",
+      password: "ahmet",
+      name: "Ahmet",
+      role: "PERSONEL",
+      landingPath: "/sales/quick",
+      branchId: branchMainId,
+      managerId: "user-manager",
+    },
+    {
+      id: "user-system",
+      businessId: null,
+      businessName: null,
+      username: "yönetim",
+      password: "1234",
+      name: "Esnaf Yönetim",
+      role: "YONETIM",
+      landingPath: "/admin",
+      branchId: null,
+    },
+    {
+      id: "user-kasap-admin",
+      businessId: businessKasapId,
+      businessName: "Şen Kasap",
+      username: "veli",
+      password: "veli",
+      name: "Veli",
+      role: "ADMİN",
+      landingPath: "/dashboard",
+      branchId: null,
+    },
+    {
+      id: "user-kasap-staff",
+      businessId: businessKasapId,
+      businessName: "Şen Kasap",
+      username: "taner",
+      password: "taner",
+      name: "Taner",
+      role: "PERSONEL",
+      landingPath: "/sales/quick",
+      branchId: branchKasapId,
+      managerId: "user-kasap-admin",
+    },
   ];
 
   const sales = buildSeedSales(seededProducts, users, branches);
   const notifications: Notification[] = [
     {
       id: randomUUID(),
+      businessId: businessBakkalId,
       title: "Kritik stok uyarısı",
       message: "Merkez Şube için kritik stok seviyesi görüldü.",
       createdAt: now(),
@@ -178,6 +280,7 @@ function buildSeedDatabase(): DatabaseFile {
     },
     {
       id: randomUUID(),
+      businessId: businessBakkalId,
       title: "Gün sonu satış özeti",
       message: "Bugünkü satışlar raporlandı. Analiz sayfasına göz atın.",
       createdAt: now(),
@@ -186,14 +289,99 @@ function buildSeedDatabase(): DatabaseFile {
     },
   ];
 
+  const plans: BusinessPlan[] = [
+    {
+      id: "plan-free",
+      name: "Ücretsiz",
+      monthlyPrice: 0,
+      annualPrice: 0,
+      maxEmployees: 1,
+      maxBranches: 1,
+      features: [
+        { label: "Dashboard ekranı" },
+        { label: "Hızlı satış" },
+      ],
+    },
+    {
+      id: "plan-basic",
+      name: "Basic",
+      monthlyPrice: 499,
+      annualPrice: 499 * 12 * 0.8,
+      maxEmployees: 5,
+      maxBranches: 1,
+      features: [
+        { label: "Hızlı satış sistemleri" },
+        { label: "5 çalışan / 1 şube" },
+      ],
+    },
+    {
+      id: "plan-pro",
+      name: "Pro",
+      monthlyPrice: 999,
+      annualPrice: 999 * 12 * 0.8,
+      maxEmployees: 50,
+      maxBranches: 3,
+      features: [
+        { label: "Tüm özellikler aktif" },
+        { label: "50 çalışan / 3 şube" },
+      ],
+    },
+  ];
+
+  const businesses: Business[] = [
+    {
+      id: businessBakkalId,
+      name: "Şen Bakkal",
+      planId: "plan-basic",
+      billingCycle: "MONTHLY",
+      paymentMethods: [
+        {
+          id: randomUUID(),
+          label: "Ana Kart",
+          holderName: "Fatih Yılmaz",
+          cardNumber: "4111 1111 1111 3281",
+          expMonth: "12",
+          expYear: "2027",
+          cvc: "123",
+        },
+      ],
+      createdAt: now(),
+    },
+    {
+      id: businessKasapId,
+      name: "Şen Kasap",
+      planId: "plan-free",
+      billingCycle: "FREE",
+      paymentMethods: [],
+      createdAt: now(),
+    },
+  ];
+
+  const applications: BusinessApplication[] = [
+    {
+      id: randomUUID(),
+      businessName: "Örnek Market",
+      username: "ornekadmin",
+      password: "1234",
+      createdAt: now(),
+      status: "PENDING",
+    },
+  ];
+
   return {
     products: seededProducts,
     categories,
-    settings: { defaultVatRate: 0.2, posFeeType: "RATE", posFeeValue: 0.02 },
+    settings: [
+      { businessId: businessBakkalId, defaultVatRate: 0.2, posFeeType: "RATE", posFeeValue: 0.02 },
+      { businessId: businessKasapId, defaultVatRate: 0.2, posFeeType: "RATE", posFeeValue: 0.02 },
+    ],
     sales,
     users,
     branches,
     notifications,
+    businesses,
+    plans,
+    applications,
   };
 }
 
@@ -236,9 +424,12 @@ function buildSeedSales(products: Product[], users: DemoUser[], branches: Branch
 
     const createdBy = users[index % users.length];
     const branchId = createdBy.branchId ?? branches[0]?.id ?? null;
+    const businessId =
+      createdBy.businessId ?? branches.find((branch) => branch.id === branchId)?.businessId ?? products[0]?.businessId;
 
     return {
       id: randomUUID(),
+      businessId: businessId ?? "biz-sen-bakkal",
       clientRequestId: randomUUID(),
       createdAt: createdAt.toISOString(),
       createdBy: { id: createdBy.id, name: createdBy.name, role: createdBy.role },
@@ -256,14 +447,14 @@ function buildSeedSales(products: Product[], users: DemoUser[], branches: Branch
   });
 }
 
-export function listProducts() {
+export function listProducts(businessId?: string | null) {
   const db = readDatabase();
-  return db.products.filter((p) => p.isActive);
+  return db.products.filter((p) => p.isActive).filter((p) => !businessId || p.businessId === businessId);
 }
 
 export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">) {
   const db = readDatabase();
-  const defaultBranchId = db.branches[0]?.id;
+  const defaultBranchId = db.branches.find((branch) => branch.businessId === input.businessId)?.id;
   const stockByBranch = input.stockByBranch
     ? { ...input.stockByBranch }
     : defaultBranchId
@@ -279,7 +470,7 @@ export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">
   };
   db.products.unshift(created);
   if (created.category) {
-    ensureCategory(db, created.category);
+    ensureCategory(db, created.category, created.businessId);
   }
   writeDatabase(db);
   return created;
@@ -301,7 +492,7 @@ export function updateProductMeta(
     const nextCategory = updates.category ? updates.category.trim() : "";
     product.category = nextCategory || undefined;
     if (nextCategory) {
-      ensureCategory(db, nextCategory);
+      ensureCategory(db, nextCategory, product.businessId);
     }
   }
   product.updatedAt = now();
@@ -334,7 +525,7 @@ export function updateProductDetails(
     const nextCategory = updates.category ? updates.category.trim() : "";
     product.category = nextCategory || undefined;
     if (nextCategory) {
-      ensureCategory(db, nextCategory);
+      ensureCategory(db, nextCategory, product.businessId);
     }
   }
   if (typeof updates.salePrice === "number" && !Number.isNaN(updates.salePrice)) {
@@ -391,22 +582,27 @@ export function deleteProduct(productId: string) {
   return removed;
 }
 
-function ensureCategory(db: DatabaseFile, name: string) {
-  const exists = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+function ensureCategory(db: DatabaseFile, name: string, businessId: string) {
+  const exists = db.categories.find(
+    (c) => c.businessId === businessId && c.name.toLowerCase() === name.toLowerCase()
+  );
   if (exists) return exists;
-  const created: Category = { id: randomUUID(), name, createdAt: now() };
+  const created: Category = { id: randomUUID(), name, createdAt: now(), businessId };
   db.categories.unshift(created);
   return created;
 }
 
-export function listCategories() {
+export function listCategories(businessId?: string | null) {
   const db = readDatabase();
-  return db.categories.slice().sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  return db.categories
+    .filter((category) => !businessId || category.businessId === businessId)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 }
 
-export function addCategory(name: string) {
+export function addCategory(name: string, businessId: string) {
   const db = readDatabase();
-  const created = ensureCategory(db, name.trim());
+  const created = ensureCategory(db, name.trim(), businessId);
   writeDatabase(db);
   return created;
 }
@@ -420,7 +616,9 @@ export function renameCategory(categoryId: string, name: string) {
   const prevName = category.name;
   category.name = nextName;
   db.products = db.products.map((product) =>
-    product.category === prevName ? { ...product, category: nextName, updatedAt: now() } : product
+    product.category === prevName && product.businessId === category.businessId
+      ? { ...product, category: nextName, updatedAt: now() }
+      : product
   );
   writeDatabase(db);
   return category;
@@ -432,22 +630,47 @@ export function deleteCategory(categoryId: string) {
   if (index === -1) return null;
   const [removed] = db.categories.splice(index, 1);
   db.products = db.products.map((product) =>
-    product.category === removed.name ? { ...product, category: undefined, updatedAt: now() } : product
+    product.category === removed.name && product.businessId === removed.businessId
+      ? { ...product, category: undefined, updatedAt: now() }
+      : product
   );
   writeDatabase(db);
   return removed;
 }
 
-export function getSettings() {
+export function getSettings(businessId: string) {
   const db = readDatabase();
-  return db.settings;
+  const existing = db.settings.find((setting) => setting.businessId === businessId);
+  if (existing) return existing;
+  const created: Settings = {
+    businessId,
+    defaultVatRate: 0.2,
+    posFeeType: "RATE",
+    posFeeValue: 0.02,
+  };
+  db.settings.push(created);
+  writeDatabase(db);
+  return created;
 }
 
-export function updateSettings(partial: Partial<Settings>) {
+export function updateSettings(businessId: string, partial: Partial<Settings>) {
   const db = readDatabase();
-  db.settings = { ...db.settings, ...partial };
+  const existing = db.settings.find((setting) => setting.businessId === businessId);
+  if (!existing) {
+    const created = {
+      businessId,
+      defaultVatRate: partial.defaultVatRate ?? 0.2,
+      posFeeType: partial.posFeeType ?? "RATE",
+      posFeeValue: partial.posFeeValue ?? 0.02,
+    };
+    db.settings.push(created);
+    writeDatabase(db);
+    return created;
+  }
+  const next = { ...existing, ...partial, businessId };
+  db.settings = db.settings.map((setting) => (setting.businessId === businessId ? next : setting));
   writeDatabase(db);
-  return db.settings;
+  return next;
 }
 
 export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "id" | "createdAt">) {
@@ -465,16 +688,19 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
   for (const it of created.items) {
     const p = db.products.find((x) => x.id === it.productId);
     if (p) {
-      const branchId = created.branchId ?? db.branches[0]?.id;
-      if (branchId) {
-        if (!p.stockByBranch) p.stockByBranch = {};
-        const currentStock = p.stockByBranch[branchId] ?? 0;
+        const branchId =
+          created.branchId ??
+          db.branches.find((branch) => branch.businessId === created.businessId)?.id;
+        if (branchId) {
+          if (!p.stockByBranch) p.stockByBranch = {};
+          const currentStock = p.stockByBranch[branchId] ?? 0;
         const nextStock = Math.max(0, currentStock - it.qty);
         p.stockByBranch[branchId] = nextStock;
         if (currentStock > 0 && nextStock === 0) {
           const branchName = db.branches.find((b) => b.id === branchId)?.name ?? "Şube";
           db.notifications.unshift({
             id: randomUUID(),
+            businessId: created.businessId,
             title: "Stok tükendi",
             message: `${p.name} ürünü ${branchName} için tükendi.`,
             createdAt: now(),
@@ -493,6 +719,7 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
   db.sales.unshift(created);
   db.notifications.unshift({
     id: randomUUID(),
+    businessId: created.businessId,
     title: "Yeni satış oluşturuldu",
     message: `${created.createdBy?.name ?? "Kullanıcı"} yeni bir satış yaptı.`,
     createdAt: now(),
@@ -504,14 +731,17 @@ export function createSaleIdempotent(clientRequestId: string, sale: Omit<Sale, "
   return created;
 }
 
-export function listSales(limit = 20) {
+export function listSales(businessId?: string | null, limit = 20) {
   const db = readDatabase();
-  return db.sales.slice(0, limit);
+  if (businessId === "all") {
+    return db.sales.slice(0, limit);
+  }
+  return db.sales.filter((sale) => !businessId || sale.businessId === businessId).slice(0, limit);
 }
 
-export function listUsers() {
+export function listUsers(businessId?: string | null) {
   const db = readDatabase();
-  return db.users.slice();
+  return db.users.filter((user) => !businessId || user.businessId === businessId).slice();
 }
 
 export function saveUsers(users: DemoUser[]) {
@@ -521,22 +751,135 @@ export function saveUsers(users: DemoUser[]) {
   return db.users;
 }
 
-export function listBranches() {
+export function listBusinesses() {
   const db = readDatabase();
-  return db.branches.slice();
+  return db.businesses.slice();
 }
 
-export function addBranch(name: string) {
+export function updateBusiness(businessId: string, partial: Partial<Business>) {
   const db = readDatabase();
-  const created: Branch = { id: randomUUID(), name: name.trim(), createdAt: now() };
+  const business = db.businesses.find((b) => b.id === businessId);
+  if (!business) return null;
+  const next = { ...business, ...partial, id: businessId };
+  db.businesses = db.businesses.map((b) => (b.id === businessId ? next : b));
+  writeDatabase(db);
+  return next;
+}
+
+export function deleteBusiness(businessId: string) {
+  const db = readDatabase();
+  db.businesses = db.businesses.filter((b) => b.id !== businessId);
+  db.users = db.users.filter((u) => u.businessId !== businessId);
+  db.products = db.products.filter((p) => p.businessId !== businessId);
+  db.categories = db.categories.filter((c) => c.businessId !== businessId);
+  db.sales = db.sales.filter((s) => s.businessId !== businessId);
+  db.branches = db.branches.filter((b) => b.businessId !== businessId);
+  db.notifications = db.notifications.filter((n) => n.businessId !== businessId);
+  db.settings = db.settings.filter((s) => s.businessId !== businessId);
+  writeDatabase(db);
+}
+
+export function listPlans() {
+  const db = readDatabase();
+  return db.plans.slice();
+}
+
+export function savePlans(plans: BusinessPlan[]) {
+  const db = readDatabase();
+  db.plans = plans;
+  writeDatabase(db);
+  return db.plans;
+}
+
+export function listApplications() {
+  const db = readDatabase();
+  return db.applications.slice();
+}
+
+export function addApplication(application: Omit<BusinessApplication, "id" | "createdAt" | "status">) {
+  const db = readDatabase();
+  const created: BusinessApplication = {
+    id: randomUUID(),
+    createdAt: now(),
+    status: "PENDING",
+    ...application,
+  };
+  db.applications.unshift(created);
+  writeDatabase(db);
+  return created;
+}
+
+export function updateApplication(
+  applicationId: string,
+  status: BusinessApplication["status"],
+  options?: { createBusiness?: boolean }
+) {
+  const db = readDatabase();
+  const application = db.applications.find((app) => app.id === applicationId);
+  if (!application) return null;
+  application.status = status;
+  if (status === "APPROVED" && options?.createBusiness) {
+    const businessId = `biz-${application.businessName.toLowerCase().replace(/\s+/g, "-")}`;
+    if (!db.businesses.find((b) => b.id === businessId)) {
+      db.businesses.unshift({
+        id: businessId,
+        name: application.businessName,
+        planId: "plan-free",
+        billingCycle: "FREE",
+        paymentMethods: [],
+        createdAt: now(),
+      });
+      db.settings.push({
+        businessId,
+        defaultVatRate: 0.2,
+        posFeeType: "RATE",
+        posFeeValue: 0.02,
+      });
+    }
+    db.users.unshift({
+      id: `user-${application.username}`,
+      businessId,
+      businessName: application.businessName,
+      username: application.username,
+      password: application.password,
+      name: application.username,
+      role: "ADMİN",
+      landingPath: "/dashboard",
+      branchId: null,
+    });
+  }
+  writeDatabase(db);
+  return application;
+}
+
+export function updateUserCredentials(userId: string, updates: { username?: string; password?: string }) {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return null;
+  const nextUsername = updates.username?.trim() || user.username;
+  const nextPassword = updates.password?.trim() || user.password;
+  user.username = nextUsername;
+  user.password = nextPassword;
+  writeDatabase(db);
+  return user;
+}
+
+export function listBranches(businessId?: string | null) {
+  const db = readDatabase();
+  return db.branches.filter((branch) => !businessId || branch.businessId === businessId).slice();
+}
+
+export function addBranch(name: string, businessId: string) {
+  const db = readDatabase();
+  const created: Branch = { id: randomUUID(), name: name.trim(), createdAt: now(), businessId };
   db.branches.unshift(created);
   writeDatabase(db);
   return created;
 }
 
-export function listNotifications() {
+export function listNotifications(businessId?: string | null) {
   const db = readDatabase();
-  return db.notifications.slice();
+  return db.notifications.filter((note) => !businessId || note.businessId === businessId).slice();
 }
 
 export function addNotification(input: Omit<Notification, "id" | "createdAt">) {

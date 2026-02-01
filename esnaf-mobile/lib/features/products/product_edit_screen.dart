@@ -6,6 +6,7 @@ import '../../data/models/models.dart';
 import '../../data/repositories/products_repo.dart';
 import '../../data/repositories/settings_repo.dart';
 import '../../data/repositories/branches_repo.dart';
+import '../../data/repositories/auth_repo.dart';
 
 class ProductEditScreen extends ConsumerStatefulWidget {
   const ProductEditScreen({super.key, required this.product});
@@ -133,9 +134,16 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
                 final repo = ref.read(productsRepoProvider);
                 final now = DateTime.now().millisecondsSinceEpoch;
                 final s = ref.read(settingsProvider);
+                final auth = ref.read(authRepoProvider);
+                final businessId = auth.getBusinessId();
+                final branchRepo = ref.read(branchesRepoProvider);
+                final businessBranches = branchRepo.list(businessId: businessId);
+                final defaultBranchId =
+                    businessBranches.isNotEmpty ? businessBranches.first.id : defaultBranchMainId;
 
                 final p = (widget.product ?? Product(
                       id: newId(),
+                      businessId: businessId,
                       name: '',
                       category: '',
                       salePrice: 0,
@@ -143,7 +151,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
                       vatRate: s.defaultVatRate,
                       criticalStock: s.criticalStockDefault,
                       stockQty: 0,
-                      stockByBranch: const {defaultBranchMainId: 0},
+                      stockByBranch: {defaultBranchId: 0},
                       isActive: true,
                       qrValue: '',
                       updatedAt: now,
@@ -156,7 +164,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
                   vatRate: _d(vatRate.text) / 100.0,
                   criticalStock: _d(criticalStock.text),
                   stockQty: _d(stockQty.text),
-                  stockByBranch: widget.product?.stockByBranch ?? {defaultBranchMainId: _d(stockQty.text)},
+                  stockByBranch: widget.product?.stockByBranch ?? {defaultBranchId: _d(stockQty.text)},
                   qrValue: qrValue.text.trim(),
                   updatedAt: now,
                 );

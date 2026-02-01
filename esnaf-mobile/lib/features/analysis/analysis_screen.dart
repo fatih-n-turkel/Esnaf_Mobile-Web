@@ -24,6 +24,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
     final userBranchId = auth.getBranchId();
+    final businessId = auth.getBusinessId();
     final canSee = role == 'admin' || role == 'manager';
 
     if (!canSee) {
@@ -31,11 +32,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     }
 
     ref.watch(branchesSeedProvider);
-    final branches = ref.watch(branchesRepoProvider).list();
+    final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
     final activeBranchId = role == 'admin' ? _selectedBranchId : userBranchId;
     final salesRepo = ref.watch(salesRepoProvider);
-    final products = ref.watch(productsRepoProvider).list(branchId: activeBranchId);
-    final sales = salesRepo.listRecent(limit: 500).where((sale) {
+    final products = ref.watch(productsRepoProvider).list(branchId: activeBranchId, businessId: businessId);
+    final sales = salesRepo.listRecent(limit: 500, businessId: businessId).where((sale) {
       if (activeBranchId.isEmpty) return true;
       return sale.branchId == activeBranchId;
     }).toList();
@@ -44,13 +45,16 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
 
     final personnel = auth
         .listUsers()
-        .where((u) => u.role == 'staff' && (activeBranchId.isEmpty || u.branchId == activeBranchId))
+        .where((u) =>
+            u.role == 'staff' &&
+            u.businessId == businessId &&
+            (activeBranchId.isEmpty || u.branchId == activeBranchId))
         .toList();
     final filteredPersonnel = personnel
         .where((person) => _query.isEmpty || person.name.toLowerCase().contains(_query) || person.username.toLowerCase().contains(_query))
         .toList();
 
-    final managers = auth.listUsers().where((u) => u.role == 'manager').toList();
+    final managers = auth.listUsers().where((u) => u.role == 'manager' && u.businessId == businessId).toList();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -123,8 +127,12 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                       .where((b) => activeBranchId.isEmpty || b.id == activeBranchId)
                       .where((b) => _branchSearch.isEmpty || b.name.toLowerCase().contains(_branchSearch))
                       .map((branch) {
-                    final branchSales = salesRepo.listRecent(limit: 500).where((sale) => sale.branchId == branch.id).toList();
-                    final branchProducts = ref.watch(productsRepoProvider).list(branchId: branch.id);
+                    final branchSales = salesRepo
+                        .listRecent(limit: 500, businessId: businessId)
+                        .where((sale) => sale.branchId == branch.id)
+                        .toList();
+                    final branchProducts =
+                        ref.watch(productsRepoProvider).list(branchId: branch.id, businessId: businessId);
                     final branchStock = branchProducts.fold<double>(0, (sum, p) => sum + p.stockQty);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -302,15 +310,21 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     const Text('Müdür Analizleri', style: TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     ...managers.map((manager) {
-                      final managerSales = salesRepo.listRecent(limit: 500).where((s) => s.createdBy == manager.username).toList();
-                      final personnelForManager = auth.listUsers().where((u) => u.managerId == manager.username).toList();
+                      final managerSales = salesRepo
+                          .listRecent(limit: 500, businessId: businessId)
+                          .where((s) => s.createdBy == manager.username)
+                          .toList();
+                      final personnelForManager = auth
+                          .listUsers()
+                          .where((u) => u.managerId == manager.username && u.businessId == businessId)
+                          .toList();
                       final managedBranchIds = [
                         if (manager.branchId.isNotEmpty) manager.branchId,
                         ...personnelForManager.where((u) => u.branchId.isNotEmpty).map((u) => u.branchId),
                       ].toSet().toList();
                       final branchNames = managedBranchIds.map((id) => _branchName(branches, id)).where((name) => name.isNotEmpty).toList();
                       final managedSales = salesRepo
-                          .listRecent(limit: 500)
+                          .listRecent(limit: 500, businessId: businessId)
                           .where((s) => managedBranchIds.contains(s.branchId))
                           .toList();
                       return Padding(

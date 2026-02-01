@@ -9,24 +9,25 @@ import { Branch, DemoUser, Notification, Product, Sale } from "@/lib/types";
 import { getDemoUsers, roleLabel } from "@/lib/auth";
 import { branchLabel, filterSalesByBranch, filterUsersByBranch, getBranchStock } from "@/lib/branches";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchProducts() {
-  const r = await fetch("/api/products", { cache: "no-store" });
+async function fetchProducts(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/products", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchSales() {
-  const r = await fetch("/api/sales", { cache: "no-store" });
+async function fetchSales(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/sales", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchBranches() {
-  const r = await fetch("/api/branches", { cache: "no-store" });
+async function fetchBranches(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchNotifications() {
-  const r = await fetch("/api/notifications", { cache: "no-store" });
+async function fetchNotifications(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/notifications", businessId), { cache: "no-store" });
   return r.json();
 }
 
@@ -38,23 +39,36 @@ export default function Topbar() {
   const [people, setPeople] = useState<DemoUser[]>([]);
   const user = useAuth((state) => state.user);
   const logout = useAuth((state) => state.logout);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
 
-  const { data: productData } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
-  const { data: salesData } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
-  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
-  const { data: notificationData } = useQuery({ queryKey: ["notifications"], queryFn: fetchNotifications });
+  const { data: productData } = useQuery({
+    queryKey: ["products", businessId],
+    queryFn: () => fetchProducts(businessId),
+  });
+  const { data: salesData } = useQuery({
+    queryKey: ["sales", businessId],
+    queryFn: () => fetchSales(businessId),
+  });
+  const { data: branchData } = useQuery({
+    queryKey: ["branches", businessId],
+    queryFn: () => fetchBranches(businessId),
+  });
+  const { data: notificationData } = useQuery({
+    queryKey: ["notifications", businessId],
+    queryFn: () => fetchNotifications(businessId),
+  });
 
   const products: Product[] = productData?.items ?? [];
   const sales: Sale[] = salesData?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
   const notifications: Notification[] = notificationData?.items ?? [];
-  const branchId = user?.role === "ADMİN" ? null : user?.branchId ?? null;
+  const branchId = user?.role === "ADMİN" || user?.role === "YONETIM" ? null : user?.branchId ?? null;
   const scopedSales = useMemo(() => filterSalesByBranch(sales, branchId ?? undefined), [sales, branchId]);
   const canSeePersonnel = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   useEffect(() => {
     let active = true;
-    getDemoUsers().then((list) => {
+    getDemoUsers(businessId).then((list) => {
       if (active) setPeople(list);
     });
     return () => {

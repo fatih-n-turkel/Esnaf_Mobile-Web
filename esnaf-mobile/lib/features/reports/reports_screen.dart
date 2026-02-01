@@ -11,8 +11,10 @@ class ReportsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(authRepoProvider).getRole();
-    final branchId = ref.watch(authRepoProvider).getBranchId();
+    final auth = ref.watch(authRepoProvider);
+    final role = auth.getRole();
+    final branchId = auth.getBranchId();
+    final businessId = auth.getBusinessId();
     final canProfit = _canSeeProfit(role);
     if (!canProfit) {
       return const Center(child: Text('Bu sayfa sadece admin ve müdür kullanıcılar içindir.'));
@@ -20,7 +22,7 @@ class ReportsScreen extends ConsumerWidget {
 
     final sales = ref
         .watch(salesRepoProvider)
-        .listRecent(limit: 200)
+        .listRecent(limit: 200, businessId: businessId)
         .where((sale) => role == 'admin' || branchId.isEmpty || sale.branchId == branchId)
         .toList();
 

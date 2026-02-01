@@ -4,17 +4,22 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DemoUser, Settings } from "@/lib/types";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchSettings() {
-  const r = await fetch("/api/settings", { cache: "no-store" });
+async function fetchSettings(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/settings", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
-  const settings: Settings | undefined = data?.item;
   const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({
+    queryKey: ["settings", businessId],
+    queryFn: () => fetchSettings(businessId),
+  });
+  const settings: Settings | undefined = data?.item;
   const canEdit = user?.role === "ADMİN" || user?.role === "MÜDÜR";
   const isPersonnel = user?.role === "PERSONEL";
   const [vatRate, setVatRate] = useState(settings?.defaultVatRate ? String(settings.defaultVatRate * 100) : "");
@@ -40,7 +45,7 @@ export default function SettingsPage() {
       return;
     }
     const rate = Number(vatRate) / 100;
-    const r = await fetch("/api/settings", {
+    const r = await fetch(withBusinessId("/api/settings", businessId), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ defaultVatRate: rate }),
@@ -50,7 +55,7 @@ export default function SettingsPage() {
       alert(err?.error ?? "KDV oranı güncellenemedi.");
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["settings"] });
+    await qc.invalidateQueries({ queryKey: ["settings", businessId] });
   }
 
   async function savePosFee() {
@@ -66,7 +71,7 @@ export default function SettingsPage() {
     const nextValue = posFeeType === "RATE" ? parsedValue / 100 : parsedValue;
     const vatValue = Number(vatRate);
     const safeVatRate = Number.isNaN(vatValue) ? settings?.defaultVatRate ?? 0 : vatValue / 100;
-    const r = await fetch("/api/settings", {
+    const r = await fetch(withBusinessId("/api/settings", businessId), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ defaultVatRate: safeVatRate, posFeeType, posFeeValue: nextValue }),
@@ -76,7 +81,7 @@ export default function SettingsPage() {
       alert(err?.error ?? "POS komisyonu güncellenemedi.");
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["settings"] });
+    await qc.invalidateQueries({ queryKey: ["settings", businessId] });
   }
 
   async function savePassword() {
@@ -98,7 +103,7 @@ export default function SettingsPage() {
       return;
     }
     setIsSavingPassword(true);
-    const rUsers = await fetch("/api/users", { cache: "no-store" });
+    const rUsers = await fetch(withBusinessId("/api/users", businessId), { cache: "no-store" });
     if (!rUsers.ok) {
       setIsSavingPassword(false);
       alert("Kullanıcılar alınamadı.");

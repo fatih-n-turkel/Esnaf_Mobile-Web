@@ -30,7 +30,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = auth.isLoggedIn;
       final goingLogin = state.matchedLocation == '/login';
       if (!loggedIn && !goingLogin) return '/login';
-      if (loggedIn && goingLogin) return '/home';
+      if (loggedIn && goingLogin) {
+        return auth.getRole() == 'system' ? '/admin' : '/home';
+      }
       return null;
     },
     routes: [

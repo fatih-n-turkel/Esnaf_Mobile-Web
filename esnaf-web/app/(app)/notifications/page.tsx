@@ -6,14 +6,15 @@ import { Notification } from "@/lib/types";
 import { useAuth } from "@/store/auth";
 import { branchLabel } from "@/lib/branches";
 import { Branch } from "@/lib/types";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchNotifications() {
-  const r = await fetch("/api/notifications", { cache: "no-store" });
+async function fetchNotifications(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/notifications", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchBranches() {
-  const r = await fetch("/api/branches", { cache: "no-store" });
+async function fetchBranches(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
   return r.json();
 }
 
@@ -27,10 +28,17 @@ async function markRead(ids: string[]) {
 }
 
 export default function NotificationsPage() {
-  const { data } = useQuery({ queryKey: ["notifications"], queryFn: fetchNotifications });
-  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
   const qc = useQueryClient();
   const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({
+    queryKey: ["notifications", businessId],
+    queryFn: () => fetchNotifications(businessId),
+  });
+  const { data: branchData } = useQuery({
+    queryKey: ["branches", businessId],
+    queryFn: () => fetchBranches(businessId),
+  });
   const notifications: Notification[] = data?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
 
@@ -48,7 +56,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     const unreadIds = scoped.filter((n) => !n.readAt).map((n) => n.id);
     if (!unreadIds.length) return;
-    markRead(unreadIds).then(() => qc.invalidateQueries({ queryKey: ["notifications"] }));
+    markRead(unreadIds).then(() => qc.invalidateQueries({ queryKey: ["notifications", businessId] }));
   }, [qc, scoped]);
 
   return (

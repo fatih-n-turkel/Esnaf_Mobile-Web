@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Category, Product } from "@/lib/types";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
 type CategoryEdit = {
   id: string;
@@ -11,21 +12,28 @@ type CategoryEdit = {
   productIds: string[];
 };
 
-async function fetchProducts() {
-  const r = await fetch("/api/products", { cache: "no-store" });
+async function fetchProducts(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/products", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchCategories() {
-  const r = await fetch("/api/categories", { cache: "no-store" });
+async function fetchCategories(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/categories", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function ProductsPage() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
-  const { data: categoryData } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({
+    queryKey: ["products", businessId],
+    queryFn: () => fetchProducts(businessId),
+  });
+  const { data: categoryData } = useQuery({
+    queryKey: ["categories", businessId],
+    queryFn: () => fetchCategories(businessId),
+  });
   const canManage = user?.role === "ADMİN" || user?.role === "MÜDÜR";
 
   const products: Product[] = data?.items ?? [];
@@ -62,7 +70,7 @@ export default function ProductsPage() {
       qrCode: form.qrCode || undefined,
     };
 
-    const r = await fetch("/api/products", {
+    const r = await fetch(withBusinessId("/api/products", businessId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -87,13 +95,13 @@ export default function ProductsPage() {
     setShowForm(false);
 
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["products"] }),
-      qc.invalidateQueries({ queryKey: ["categories"] }),
+      qc.invalidateQueries({ queryKey: ["products", businessId] }),
+      qc.invalidateQueries({ queryKey: ["categories", businessId] }),
     ]);
   }
 
   async function addCategory(name: string) {
-    const r = await fetch("/api/categories", {
+    const r = await fetch(withBusinessId("/api/categories", businessId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -111,7 +119,7 @@ export default function ProductsPage() {
         { id: res.item.id, name: res.item.name, productIds: [] },
       ]);
     }
-    await qc.invalidateQueries({ queryKey: ["categories"] });
+    await qc.invalidateQueries({ queryKey: ["categories", businessId] });
   }
 
   async function openQr(product: Product) {
@@ -131,7 +139,7 @@ export default function ProductsPage() {
       }
       const res = await r.json();
       next = res.item;
-      await qc.invalidateQueries({ queryKey: ["products"] });
+      await qc.invalidateQueries({ queryKey: ["products", businessId] });
     }
     setQrProduct(next);
     setQrBusy(false);
@@ -204,7 +212,7 @@ export default function ProductsPage() {
       setEditBusy(false);
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["products"] });
+    await qc.invalidateQueries({ queryKey: ["products", businessId] });
     setEditProduct(null);
     setEditBusy(false);
   }
@@ -224,8 +232,8 @@ export default function ProductsPage() {
     }
     setEditProduct(null);
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["products"] }),
-      qc.invalidateQueries({ queryKey: ["categories"] }),
+      qc.invalidateQueries({ queryKey: ["products", businessId] }),
+      qc.invalidateQueries({ queryKey: ["categories", businessId] }),
     ]);
   }
 
@@ -296,8 +304,8 @@ export default function ProductsPage() {
 
     await Promise.all(updateCalls);
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["products"] }),
-      qc.invalidateQueries({ queryKey: ["categories"] }),
+      qc.invalidateQueries({ queryKey: ["products", businessId] }),
+      qc.invalidateQueries({ queryKey: ["categories", businessId] }),
     ]);
     setCategoryBusyId(null);
   }
@@ -315,8 +323,8 @@ export default function ProductsPage() {
       return;
     }
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["products"] }),
-      qc.invalidateQueries({ queryKey: ["categories"] }),
+      qc.invalidateQueries({ queryKey: ["products", businessId] }),
+      qc.invalidateQueries({ queryKey: ["categories", businessId] }),
     ]);
     setCategoryEdits((prev) => prev.filter((item) => item.id !== edit.id));
   }

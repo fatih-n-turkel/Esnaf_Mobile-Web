@@ -2,8 +2,9 @@ import { DemoUser, Role } from "./types";
 
 export type { DemoUser };
 
-export async function getDemoUsers(): Promise<DemoUser[]> {
-  const response = await fetch("/api/users", { cache: "no-store" });
+export async function getDemoUsers(businessId?: string | null): Promise<DemoUser[]> {
+  const url = businessId ? `/api/users?businessId=${businessId}` : "/api/users";
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     return [];
   }
@@ -24,11 +25,11 @@ export async function saveDemoUsers(users: DemoUser[]) {
   return data.items as DemoUser[];
 }
 
-export async function authenticate(username: string, password: string) {
+export async function authenticate(businessName: string, username: string, password: string) {
   const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ businessName, username, password }),
   });
   if (!response.ok) {
     return null;
@@ -38,6 +39,7 @@ export async function authenticate(username: string, password: string) {
 }
 
 export function roleLabel(role: Role) {
+  if (role === "YONETIM") return "Yönetim";
   if (role === "ADMİN") return "Admin";
   if (role === "MÜDÜR") return "Müdür";
   return "Personel";

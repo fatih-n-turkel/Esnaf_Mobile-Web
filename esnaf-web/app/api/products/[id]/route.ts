@@ -13,6 +13,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     body?.criticalStockLevel === undefined ? undefined : Number(body.criticalStockLevel);
   const stockOnHand = body?.stockOnHand === undefined ? undefined : Number(body.stockOnHand);
   const branchId = body?.branchId === undefined ? undefined : body?.branchId;
+  const note = body?.note === undefined ? undefined : body?.note === null ? null : String(body.note);
+  const noteVisibleToStaff =
+    body?.noteVisibleToStaff === undefined ? undefined : Boolean(body.noteVisibleToStaff);
 
   const updated = updateProductDetails(params.id, {
     qrCode,
@@ -23,6 +26,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     criticalStockLevel,
     stockOnHand,
     branchId,
+    note,
+    noteVisibleToStaff,
   });
 
   if (!updated) {

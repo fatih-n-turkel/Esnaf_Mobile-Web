@@ -3,13 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { jsPDF } from "jspdf";
-import { analyticsPeriods, calcAnalyticsForPeriod } from "@/lib/analytics";
+import {
+  anchoredPeriods,
+  analyticsPeriods,
+  calcAnalyticsForPeriod,
+  calcAnalyticsForRange,
+  calcProductStatsForRange,
+  getAnchoredRange,
+} from "@/lib/analytics";
 import { fmtTRY } from "@/lib/money";
-import { Branch, DemoUser, Product, Sale } from "@/lib/types";
+import { Branch, Business, DemoUser, Product, Sale, UserActivity } from "@/lib/types";
 import { getDemoUsers } from "@/lib/auth";
 import { branchLabel, filterSalesByBranch, filterUsersByBranch, getBranchStock, sumBranchStock } from "@/lib/branches";
 import { useAuth } from "@/store/auth";
 import { withBusinessId } from "@/lib/tenant";
+import { MiniBarChart } from "@/components/mini-bar-chart";
 
 async function fetchSales(businessId?: string | null) {
   const r = await fetch(withBusinessId("/api/sales", businessId), { cache: "no-store" });
@@ -23,6 +31,16 @@ async function fetchProducts(businessId?: string | null) {
 
 async function fetchBranches(businessId?: string | null) {
   const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
+  return r.json();
+}
+
+async function fetchBusinesses() {
+  const r = await fetch("/api/businesses", { cache: "no-store" });
+  return r.json();
+}
+
+async function fetchActivity(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/activity", businessId), { cache: "no-store" });
   return r.json();
 }
 
@@ -41,12 +59,25 @@ export default function AnalysisPage() {
     queryKey: ["branches", businessId],
     queryFn: () => fetchBranches(businessId),
   });
+  const { data: businessData } = useQuery({
+    queryKey: ["businesses"],
+    queryFn: fetchBusinesses,
+  });
+  const { data: activityData } = useQuery({
+    queryKey: ["activity", businessId],
+    queryFn: () => fetchActivity(businessId),
+  });
   const [people, setPeople] = useState<DemoUser[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [comparisonPeriodKey, setComparisonPeriodKey] = useState("weekly");
+  const [comparisonUserId, setComparisonUserId] = useState<string>("");
+  const [activityPerson, setActivityPerson] = useState<DemoUser | null>(null);
 
   const sales: Sale[] = salesData?.items ?? [];
   const products: Product[] = productData?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
+  const businesses: Business[] = businessData?.items ?? [];
+  const activity: UserActivity[] = activityData?.items ?? [];
   const ownBranchId =
     user?.role === "ADMİN" || user?.role === "YONETIM" ? null : user?.branchId ?? null;
   const activeBranchId = user?.role === "ADMİN" ? selectedBranchId : ownBranchId;
@@ -56,6 +87,7 @@ export default function AnalysisPage() {
     [products, activeBranchId]
   );
   const canSeePersonnel = user?.role === "ADMİN" || user?.role === "MÜDÜR";
+  const currentBusiness = businesses.find((biz) => biz.id === businessId);
 
   useEffect(() => {
     let active = true;
@@ -65,12 +97,18 @@ export default function AnalysisPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [businessId]);
 
   const personnelUsers = useMemo(
     () => filterUsersByBranch(people, activeBranchId ?? undefined).filter((person) => person.role === "PERSONEL"),
     [people, activeBranchId]
   );
+
+  useEffect(() => {
+    if (!comparisonUserId && personnelUsers.length) {
+      setComparisonUserId(personnelUsers[0].id);
+    }
+  }, [comparisonUserId, personnelUsers]);
 
   const personnelSummaries = useMemo(() => {
     return personnelUsers.map((person) => {
@@ -84,7 +122,7 @@ export default function AnalysisPage() {
       }));
       return { person, personSales, totalRevenue, totalProfit, lastSale, analytics };
     });
-  }, [personnelUsers, sales]);
+  }, [personnelUsers, scopedSales]);
 
   const periodSummaries = useMemo(() => {
     return analyticsPeriods.map((period) => ({
@@ -92,6 +130,66 @@ export default function AnalysisPage() {
       summary: calcAnalyticsForPeriod(scopedSales, period),
     }));
   }, [scopedSales]);
+
+  const anchoredInsights = useMemo(() => {
+    const anchorDate = currentBusiness?.createdAt ? new Date(currentBusiness.createdAt) : new Date();
+    return anchoredPeriods.map((period) => {
+      const range = getAnchoredRange(anchorDate, period.days);
+      const summary = calcAnalyticsForRange(scopedSales, range);
+      const productStats = calcProductStatsForRange(scopedSales, products, range)
+        .filter((stat) => stat.qty > 0)
+        .sort((a, b) => b.revenue - a.revenue);
+      return {
+        period,
+        range,
+        summary,
+        topProducts: productStats.slice(0, 6),
+      };
+    });
+  }, [currentBusiness?.createdAt, products, scopedSales]);
+
+  const comparisonPeriod =
+    analyticsPeriods.find((period) => period.key === comparisonPeriodKey) ?? analyticsPeriods[1];
+  const comparisonRows = useMemo(() => {
+    return personnelSummaries
+      .map(({ person, analytics }) => {
+        const summary =
+          analytics.find((entry) => entry.period.key === comparisonPeriod.key)?.summary ??
+          calcAnalyticsForPeriod([], comparisonPeriod);
+        return { person, summary };
+      })
+      .sort((a, b) => b.summary.revenue - a.summary.revenue);
+  }, [comparisonPeriod, personnelSummaries]);
+
+  const comparisonAverage = useMemo(() => {
+    if (!comparisonRows.length) return { revenue: 0, profit: 0, loss: 0, soldQty: 0 };
+    const totals = comparisonRows.reduce(
+      (acc, row) => {
+        acc.revenue += row.summary.revenue;
+        acc.profit += row.summary.profit;
+        acc.loss += row.summary.loss;
+        acc.soldQty += row.summary.soldQty;
+        return acc;
+      },
+      { revenue: 0, profit: 0, loss: 0, soldQty: 0 }
+    );
+    return {
+      revenue: totals.revenue / comparisonRows.length,
+      profit: totals.profit / comparisonRows.length,
+      loss: totals.loss / comparisonRows.length,
+      soldQty: totals.soldQty / comparisonRows.length,
+    };
+  }, [comparisonRows]);
+
+  const selectedComparison = comparisonRows.find((row) => row.person.id === comparisonUserId);
+  const selectedTrend = personnelSummaries.find((entry) => entry.person.id === comparisonUserId);
+
+  const activitySessions = useMemo(() => {
+    if (!activityPerson) return [];
+    return activity
+      .filter((entry) => entry.userId === activityPerson.id)
+      .sort((a, b) => new Date(b.loginAt).getTime() - new Date(a.loginAt).getTime());
+  }, [activity, activityPerson]);
 
   const managerSummaries = useMemo(() => {
     const managers = people.filter((person) => person.role === "MÜDÜR");
@@ -179,6 +277,40 @@ export default function AnalysisPage() {
         lastSale ? new Date(lastSale).toLocaleDateString("tr-TR") : "-",
       ]);
     });
+    rows.push([]);
+    rows.push(["Personel Karşılaştırma", comparisonPeriod.label]);
+    rows.push(["Personel", "Ciro", "Kâr", "Zarar", "Satış"]);
+    comparisonRows.forEach((row) => {
+      rows.push([row.person.name, row.summary.revenue, row.summary.profit, row.summary.loss, row.summary.soldQty]);
+    });
+    rows.push([
+      "Ortalama",
+      comparisonAverage.revenue,
+      comparisonAverage.profit,
+      comparisonAverage.loss,
+      comparisonAverage.soldQty,
+    ]);
+    rows.push([]);
+    rows.push(["Ürün Bazlı Satış Özeti"]);
+    rows.push(["Dönem", "Başlangıç", "Bitiş", "Ciro", "Kâr", "Zarar"]);
+    anchoredInsights.forEach(({ period, range, summary }) => {
+      rows.push([
+        period.label,
+        range.start.toLocaleDateString("tr-TR"),
+        range.end.toLocaleDateString("tr-TR"),
+        summary.revenue,
+        summary.profit,
+        summary.loss,
+      ]);
+    });
+    anchoredInsights.forEach(({ period, topProducts }) => {
+      rows.push([]);
+      rows.push([`${period.label} - En Çok Satan Ürünler`]);
+      rows.push(["Ürün", "Ciro", "Satış Adedi", "Kâr"]);
+      topProducts.forEach((product) => {
+        rows.push([product.name, product.revenue, product.qty, product.profit]);
+      });
+    });
     const csvContent = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
     downloadBlob(csvContent, `analiz-raporu-${Date.now()}.csv`, "text/csv;charset=utf-8");
   };
@@ -224,6 +356,58 @@ export default function AnalysisPage() {
             lastSale ? escapeHtml(new Date(lastSale).toLocaleDateString("tr-TR")) : "-"
           }</td></tr>`
       )
+      .join("");
+
+    const comparisonRowsHtml = comparisonRows
+      .map(
+        ({ person, summary }) =>
+          `<tr><td>${escapeHtml(person.name)}</td><td>${escapeHtml(
+            fmtTRY(summary.revenue)
+          )}</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(
+            fmtTRY(summary.loss)
+          )}</td><td>${summary.soldQty}</td></tr>`
+      )
+      .join("");
+
+    const comparisonAverageRow = `<tr><th>Ortalama</th><td>${escapeHtml(
+      fmtTRY(comparisonAverage.revenue)
+    )}</td><td>${escapeHtml(fmtTRY(comparisonAverage.profit))}</td><td>${escapeHtml(
+      fmtTRY(comparisonAverage.loss)
+    )}</td><td>${comparisonAverage.soldQty}</td></tr>`;
+
+    const productSummaryRows = anchoredInsights
+      .map(
+        ({ period, range, summary }) =>
+          `<tr><td>${escapeHtml(period.label)}</td><td>${escapeHtml(
+            range.start.toLocaleDateString("tr-TR")
+          )}</td><td>${escapeHtml(range.end.toLocaleDateString("tr-TR"))}</td><td>${escapeHtml(
+            fmtTRY(summary.revenue)
+          )}</td><td>${escapeHtml(fmtTRY(summary.profit))}</td><td>${escapeHtml(
+            fmtTRY(summary.loss)
+          )}</td></tr>`
+      )
+      .join("");
+
+    const productTopSections = anchoredInsights
+      .map(({ period, topProducts }) => {
+        const rows = topProducts
+          .map(
+            (product) =>
+              `<tr><td>${escapeHtml(product.name)}</td><td>${escapeHtml(
+                fmtTRY(product.revenue)
+              )}</td><td>${product.qty}</td><td>${escapeHtml(fmtTRY(product.profit))}</td></tr>`
+          )
+          .join("");
+        return `
+          <h3>${escapeHtml(period.label)} En Çok Satan Ürünler</h3>
+          <table>
+            <thead>
+              <tr><th>Ürün</th><th>Ciro</th><th>Satış</th><th>Kâr</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      })
       .join("");
 
     reportWindow.document.write(`
@@ -280,6 +464,23 @@ export default function AnalysisPage() {
             </thead>
             <tbody>${personnelRows}</tbody>
           </table>
+
+          <h2>Personel Karşılaştırma (${escapeHtml(comparisonPeriod.label)})</h2>
+          <table>
+            <thead>
+              <tr><th>Personel</th><th>Ciro</th><th>Kâr</th><th>Zarar</th><th>Satış</th></tr>
+            </thead>
+            <tbody>${comparisonRowsHtml}${comparisonAverageRow}</tbody>
+          </table>
+
+          <h2>Ürün Bazlı Satış Özeti</h2>
+          <table>
+            <thead>
+              <tr><th>Dönem</th><th>Başlangıç</th><th>Bitiş</th><th>Ciro</th><th>Kâr</th><th>Zarar</th></tr>
+            </thead>
+            <tbody>${productSummaryRows}</tbody>
+          </table>
+          ${productTopSections}
         </body>
       </html>
     `);
@@ -455,6 +656,54 @@ export default function AnalysisPage() {
         </div>
       </div>
 
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
+        <div>
+          <div className="font-medium">Ürün Bazlı Satış Grafikleri</div>
+          <p className="text-xs text-zinc-500">
+            Üyelik başlangıç tarihine göre haftalık, aylık, çeyreklik ve yıllık ürün performansı.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {anchoredInsights.map(({ period, range, summary, topProducts }) => (
+            <div key={period.key} className="rounded-xl border bg-zinc-50 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-medium">{period.label}</div>
+                <div className="text-[11px] text-zinc-500">
+                  {range.start.toLocaleDateString("tr-TR")} - {range.end.toLocaleDateString("tr-TR")}
+                </div>
+              </div>
+              <div className="grid gap-2 text-xs sm:grid-cols-3">
+                <div className="rounded-lg border bg-white px-3 py-2">
+                  <div className="text-[11px] text-zinc-500">Ciro</div>
+                  <div className="font-medium">{fmtTRY(summary.revenue)}</div>
+                </div>
+                <div className="rounded-lg border bg-white px-3 py-2">
+                  <div className="text-[11px] text-zinc-500">Kâr</div>
+                  <div className="font-medium text-emerald-600">{fmtTRY(summary.profit)}</div>
+                </div>
+                <div className="rounded-lg border bg-white px-3 py-2">
+                  <div className="text-[11px] text-zinc-500">Zarar</div>
+                  <div className="font-medium text-rose-600">{fmtTRY(summary.loss)}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-zinc-600 mb-2">En çok satan ürünler</div>
+                <MiniBarChart
+                  data={topProducts.map((product) => ({
+                    label: product.name,
+                    value: product.revenue,
+                    description: `${product.qty} adet satış`,
+                  }))}
+                  valueFormatter={(value) => fmtTRY(value)}
+                  barClassName="bg-emerald-500"
+                  emptyLabel="Bu dönemde satış yok."
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
         <div>
           <div className="font-medium">Bayi Analizleri</div>
@@ -545,6 +794,99 @@ export default function AnalysisPage() {
 
       <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
         <div>
+          <div className="font-medium">Personel Kıyaslama</div>
+          <p className="text-xs text-zinc-500">
+            Personelleri dönem bazında karşılaştırın, seçilen personelin kendi trendini izleyin.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="rounded-lg border px-3 py-2 text-sm"
+            value={comparisonPeriodKey}
+            onChange={(event) => setComparisonPeriodKey(event.target.value)}
+          >
+            {analyticsPeriods.map((period) => (
+              <option key={period.key} value={period.key}>
+                {period.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-lg border px-3 py-2 text-sm"
+            value={comparisonUserId}
+            onChange={(event) => setComparisonUserId(event.target.value)}
+          >
+            {personnelUsers.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border bg-zinc-50 p-3 space-y-2 text-xs">
+            <div className="font-medium text-sm">Dönem Performansı Sıralaması</div>
+            {comparisonRows.map((row, index) => (
+              <div key={row.person.id} className="flex items-center justify-between">
+                <span>
+                  {index + 1}. {row.person.name}
+                </span>
+                <span className="font-medium">{fmtTRY(row.summary.revenue)}</span>
+              </div>
+            ))}
+            {!comparisonRows.length && <div className="text-zinc-500">Personel verisi bulunamadı.</div>}
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3 space-y-2 text-xs">
+            <div className="font-medium text-sm">Seçilen Personel vs Ortalama</div>
+            <div className="flex items-center justify-between">
+              <span>Seçilen ciro</span>
+              <span className="font-medium">
+                {selectedComparison ? fmtTRY(selectedComparison.summary.revenue) : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Ortalama ciro</span>
+              <span className="font-medium">{fmtTRY(comparisonAverage.revenue)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Kâr</span>
+              <span className="font-medium text-emerald-600">
+                {selectedComparison ? fmtTRY(selectedComparison.summary.profit) : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Zarar</span>
+              <span className="font-medium text-rose-600">
+                {selectedComparison ? fmtTRY(selectedComparison.summary.loss) : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Satış adedi</span>
+              <span className="font-medium">
+                {selectedComparison ? selectedComparison.summary.soldQty : "-"}
+              </span>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-zinc-50 p-3 space-y-2 text-xs">
+            <div className="font-medium text-sm">Seçilen Personel Trend</div>
+            <MiniBarChart
+              data={
+                selectedTrend?.analytics.map(({ period, summary }) => ({
+                  label: period.label,
+                  value: summary.revenue,
+                  description: `${summary.soldQty} satış`,
+                })) ?? []
+              }
+              valueFormatter={(value) => fmtTRY(value)}
+              barClassName="bg-indigo-500"
+              emptyLabel="Trend verisi yok."
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-4">
+        <div>
           <div className="font-medium">Personel Satışları & Performans</div>
           <p className="text-xs text-zinc-500">
             Personellerin satış adetleri ve dönemsel performans özetleri.
@@ -572,6 +914,13 @@ export default function AnalysisPage() {
                       {lastSale ? new Date(lastSale).toLocaleDateString("tr-TR") : "-"}
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    className="mt-2 rounded-lg border px-3 py-1 text-[11px] hover:bg-white"
+                    onClick={() => setActivityPerson(person)}
+                  >
+                    Aktiflik Durumu
+                  </button>
                 </div>
                 <div className="text-xs text-zinc-500">
                   Ciro: <span className="font-medium text-zinc-900">{fmtTRY(totalRevenue)}</span> • Net kâr:{" "}
@@ -593,6 +942,49 @@ export default function AnalysisPage() {
           ))}
         </div>
       </div>
+
+      {activityPerson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Aktiflik Detayları</div>
+                <div className="text-xs text-zinc-500">
+                  {activityPerson.name} • @{activityPerson.username}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivityPerson(null)}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                Kapat
+              </button>
+            </div>
+            <div className="space-y-2 text-sm">
+              {activitySessions.map((entry) => (
+                <div key={entry.id} className="rounded-xl border bg-zinc-50 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">
+                      Giriş: {new Date(entry.loginAt).toLocaleString("tr-TR")}
+                    </div>
+                    <span className="text-[11px] text-zinc-500">
+                      {entry.deviceLabel ?? "Cihaz bilgisi yok"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1">
+                    Çıkış:{" "}
+                    {entry.logoutAt ? new Date(entry.logoutAt).toLocaleString("tr-TR") : "Şu an aktif"}
+                  </div>
+                </div>
+              ))}
+              {!activitySessions.length && (
+                <div className="text-sm text-zinc-500">Aktiflik kaydı bulunamadı.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

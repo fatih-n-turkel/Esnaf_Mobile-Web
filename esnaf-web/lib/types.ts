@@ -81,6 +81,8 @@ export type Product = {
   stockOnHand: number;
   stockByBranch?: Record<string, number>;
   qrCode?: string;
+  note?: string;
+  noteVisibleToStaff?: boolean;
   isActive: boolean;
   updatedAt: string;
 };
@@ -126,6 +128,15 @@ export type Notification = {
   scope: "GLOBAL" | "BRANCH" | "USER";
   branchId?: string | null;
   userId?: string | null;
+};
+
+export type UserActivity = {
+  id: string;
+  businessId: string;
+  userId: string;
+  loginAt: string;
+  logoutAt?: string | null;
+  deviceLabel?: string | null;
 };
 
 export type Category = {

@@ -38,6 +38,8 @@ export default function AdminPage() {
   const [showPlanDetails, setShowPlanDetails] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<"MONTHLY" | "ANNUAL" | "FREE">("MONTHLY");
+  const [planSaveState, setPlanSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [planUpdateState, setPlanUpdateState] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [cardForm, setCardForm] = useState({
@@ -377,99 +379,138 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-white p-4 shadow-sm space-y-3">
-          <div>
-            <div className="font-medium">Plan Yönetimi</div>
-            <p className="text-xs text-zinc-500">Fiyat ve içerik düzenlemeleri.</p>
+        <div className="rounded-2xl border bg-white p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">Plan Yönetimi</div>
+              <p className="text-xs text-zinc-500">
+                Fiyat, limit ve özellikleri güncelleyerek paketleri profesyonelce yönetin.
+              </p>
+            </div>
+            <div className="text-xs text-zinc-500">
+              {planSaveState === "saving" && "Kaydediliyor..."}
+              {planSaveState === "saved" && "Son güncelleme başarıyla kaydedildi."}
+              {planSaveState === "error" && "Kayıt sırasında hata oluştu."}
+            </div>
           </div>
-          <div className="space-y-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             {planDrafts.map((plan, index) => (
-              <div key={plan.id} className="rounded-xl border bg-zinc-50 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{plan.name}</div>
-                  <span className="text-xs text-zinc-500">{plan.id}</span>
+              <div key={plan.id} className="rounded-2xl border bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-lg font-semibold">{plan.name}</div>
+                    <div className="text-xs text-zinc-500">{plan.id}</div>
+                  </div>
+                  <span className="rounded-full bg-white px-2 py-1 text-[11px] text-zinc-500">
+                    {plan.maxEmployees} çalışan • {plan.maxBranches} şube
+                  </span>
                 </div>
-                <div className="grid gap-2 md:grid-cols-4 text-xs">
-                  <input
-                    className="rounded-lg border px-2 py-1"
-                    value={plan.monthlyPrice}
+                <div className="grid gap-2 md:grid-cols-2 text-xs">
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-zinc-500">Aylık ücret</span>
+                    <input
+                      className="w-full rounded-lg border px-2 py-1"
+                      value={plan.monthlyPrice}
+                      onChange={(event) => {
+                        const next = [...planDrafts];
+                        next[index] = { ...plan, monthlyPrice: Number(event.target.value) };
+                        setPlanDrafts(next);
+                      }}
+                      type="number"
+                      placeholder="Aylık"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-zinc-500">Yıllık ücret</span>
+                    <input
+                      className="w-full rounded-lg border px-2 py-1"
+                      value={plan.annualPrice}
+                      onChange={(event) => {
+                        const next = [...planDrafts];
+                        next[index] = { ...plan, annualPrice: Number(event.target.value) };
+                        setPlanDrafts(next);
+                      }}
+                      type="number"
+                      placeholder="Yıllık"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-zinc-500">Maks. çalışan</span>
+                    <input
+                      className="w-full rounded-lg border px-2 py-1"
+                      value={plan.maxEmployees}
+                      onChange={(event) => {
+                        const next = [...planDrafts];
+                        next[index] = { ...plan, maxEmployees: Number(event.target.value) };
+                        setPlanDrafts(next);
+                      }}
+                      type="number"
+                      placeholder="Çalışan"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] text-zinc-500">Maks. şube</span>
+                    <input
+                      className="w-full rounded-lg border px-2 py-1"
+                      value={plan.maxBranches}
+                      onChange={(event) => {
+                        const next = [...planDrafts];
+                        next[index] = { ...plan, maxBranches: Number(event.target.value) };
+                        setPlanDrafts(next);
+                      }}
+                      type="number"
+                      placeholder="Şube"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <div className="text-[11px] text-zinc-500 mb-1">Öne çıkan özellikler</div>
+                  <textarea
+                    className="w-full rounded-lg border px-2 py-2 text-xs"
+                    rows={4}
+                    value={plan.features.map((f) => f.label).join("\n")}
                     onChange={(event) => {
                       const next = [...planDrafts];
-                      next[index] = { ...plan, monthlyPrice: Number(event.target.value) };
+                      next[index] = {
+                        ...plan,
+                        features: event.target.value
+                          .split("\n")
+                          .map((line) => line.trim())
+                          .filter(Boolean)
+                          .map((label) => ({ label })),
+                      };
                       setPlanDrafts(next);
                     }}
-                    type="number"
-                    placeholder="Aylık"
-                  />
-                  <input
-                    className="rounded-lg border px-2 py-1"
-                    value={plan.annualPrice}
-                    onChange={(event) => {
-                      const next = [...planDrafts];
-                      next[index] = { ...plan, annualPrice: Number(event.target.value) };
-                      setPlanDrafts(next);
-                    }}
-                    type="number"
-                    placeholder="Yıllık"
-                  />
-                  <input
-                    className="rounded-lg border px-2 py-1"
-                    value={plan.maxEmployees}
-                    onChange={(event) => {
-                      const next = [...planDrafts];
-                      next[index] = { ...plan, maxEmployees: Number(event.target.value) };
-                      setPlanDrafts(next);
-                    }}
-                    type="number"
-                    placeholder="Çalışan"
-                  />
-                  <input
-                    className="rounded-lg border px-2 py-1"
-                    value={plan.maxBranches}
-                    onChange={(event) => {
-                      const next = [...planDrafts];
-                      next[index] = { ...plan, maxBranches: Number(event.target.value) };
-                      setPlanDrafts(next);
-                    }}
-                    type="number"
-                    placeholder="Şube"
                   />
                 </div>
-                <textarea
-                  className="w-full rounded-lg border px-2 py-1 text-xs"
-                  rows={3}
-                  value={plan.features.map((f) => f.label).join("\n")}
-                  onChange={(event) => {
-                    const next = [...planDrafts];
-                    next[index] = {
-                      ...plan,
-                      features: event.target.value
-                        .split("\n")
-                        .map((line) => line.trim())
-                        .filter(Boolean)
-                        .map((label) => ({ label })),
-                    };
-                    setPlanDrafts(next);
-                  }}
-                />
               </div>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-zinc-500">
+              Düzenlemeler tüm işletmelerde anında görünür.
+            </div>
             <button
               type="button"
               className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
               onClick={async () => {
+                setPlanSaveState("saving");
                 const r = await fetch("/api/plans", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ plans: planDrafts }),
                 });
-                if (!r.ok) return;
+                if (!r.ok) {
+                  setPlanSaveState("error");
+                  return;
+                }
                 const res = await r.json();
                 setPlans(res.items ?? []);
                 setPlanDrafts(res.items ?? []);
+                setPlanSaveState("saved");
               }}
             >
-              Planları Kaydet
+              {planSaveState === "saving" ? "Kaydediliyor..." : "Planları Kaydet"}
             </button>
           </div>
         </div>
@@ -509,7 +550,9 @@ export default function AdminPage() {
               {plans.map((plan) => (
                 <label
                   key={plan.id}
-                  className="rounded-xl border bg-zinc-50 p-3 text-xs cursor-pointer flex flex-col gap-1"
+                  className={`rounded-xl border p-3 text-xs cursor-pointer flex flex-col gap-1 ${
+                    selectedPlanId === plan.id ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -521,11 +564,20 @@ export default function AdminPage() {
                     }}
                   />
                   <span className="font-medium">{plan.name}</span>
-                  <span className="text-zinc-500">Aylık: {fmtTRY(plan.monthlyPrice)}</span>
-                  <span className="text-zinc-500">Yıllık: {fmtTRY(plan.annualPrice)}</span>
-                  <span className="text-zinc-500">
+                  <span className={selectedPlanId === plan.id ? "text-white/80" : "text-zinc-500"}>
+                    Aylık: {fmtTRY(plan.monthlyPrice)}
+                  </span>
+                  <span className={selectedPlanId === plan.id ? "text-white/80" : "text-zinc-500"}>
+                    Yıllık: {fmtTRY(plan.annualPrice)}
+                  </span>
+                  <span className={selectedPlanId === plan.id ? "text-white/80" : "text-zinc-500"}>
                     {plan.maxEmployees} çalışan / {plan.maxBranches} şube
                   </span>
+                  <ul className={`mt-2 space-y-1 ${selectedPlanId === plan.id ? "text-white/80" : "text-zinc-500"}`}>
+                    {plan.features.slice(0, 3).map((feature) => (
+                      <li key={feature.label}>• {feature.label}</li>
+                    ))}
+                  </ul>
                 </label>
               ))}
             </div>
@@ -551,27 +603,42 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-            <button
-              type="button"
-              className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
-              onClick={async () => {
-                if (!selectedPlanId) return;
-                await fetch(`/api/businesses/${currentBusiness.id}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    planId: selectedPlanId,
-                    billingCycle: selectedPlanId === "plan-free" ? "FREE" : selectedCycle,
-                  }),
-                });
-                const refreshed = await fetch("/api/businesses", { cache: "no-store" }).then((r) =>
-                  r.ok ? r.json() : { items: [] }
-                );
-                setBusinesses(refreshed.items ?? []);
-              }}
-            >
-              Planı Güncelle
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm"
+                onClick={async () => {
+                  if (!selectedPlanId) return;
+                  setPlanUpdateState("saving");
+                  const r = await fetch(`/api/businesses/${currentBusiness.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      planId: selectedPlanId,
+                      billingCycle: selectedPlanId === "plan-free" ? "FREE" : selectedCycle,
+                    }),
+                  });
+                  if (!r.ok) {
+                    setPlanUpdateState("error");
+                    return;
+                  }
+                  const res = await r.json();
+                  const updated = res.item;
+                  if (updated) {
+                    setBusinesses((prev) => prev.map((biz) => (biz.id === updated.id ? updated : biz)));
+                    setSelectedPlanId(updated.planId);
+                    setSelectedCycle(updated.billingCycle);
+                  }
+                  setPlanUpdateState("success");
+                }}
+              >
+                {planUpdateState === "saving" ? "Güncelleniyor..." : "Planı Güncelle"}
+              </button>
+              <span className="text-xs text-zinc-500">
+                {planUpdateState === "success" && "Plan başarıyla güncellendi."}
+                {planUpdateState === "error" && "Plan güncellenemedi."}
+              </span>
+            </div>
           </div>
         )}
       </div>

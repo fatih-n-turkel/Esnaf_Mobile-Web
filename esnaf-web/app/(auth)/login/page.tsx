@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authenticate, getDemoUsers } from "@/lib/auth";
-import { DemoUser } from "@/lib/types";
+import { authenticate } from "@/lib/auth";
 import { useAuth } from "@/store/auth";
 
 export default function LoginPage() {
@@ -15,7 +14,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [demoList, setDemoList] = useState<DemoUser[]>([]);
   const [showApply, setShowApply] = useState(false);
   const [applyForm, setApplyForm] = useState({
     businessName: "",
@@ -23,16 +21,6 @@ export default function LoginPage() {
     password: "",
   });
   const [applyMessage, setApplyMessage] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    getDemoUsers().then((list) => {
-      if (active) setDemoList(list);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (user) {
@@ -163,17 +151,6 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 text-xs text-slate-600">
-          <div className="font-medium text-slate-700 mb-2">Demo hesaplar</div>
-          <ul className="space-y-1">
-            {demoList.map((demo) => (
-              <li key={demo.id}>
-                <span className="font-medium">{demo.name}</span> — {demo.username} / {demo.password} •{" "}
-                {demo.role === "YONETIM" ? "Yönetim" : demo.businessName ?? "Şen Bakkal"}
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   );

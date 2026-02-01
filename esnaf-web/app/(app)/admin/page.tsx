@@ -20,6 +20,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<DemoUser[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchName, setBranchName] = useState("");
+  const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
+  const [editingBranchName, setEditingBranchName] = useState("");
   const [form, setForm] = useState({
     name: "",
     username: "",
@@ -127,6 +129,22 @@ export default function AdminPage() {
   const paymentMethods = currentBusiness?.paymentMethods ?? [];
 
   const revenueSummary = useMemo(() => {
+    if (isSystemAdmin) {
+      const monthlyTotal = businesses.reduce((sum, biz) => {
+        if (biz.billingCycle === "FREE") return sum;
+        const plan = plans.find((entry) => entry.id === biz.planId);
+        if (!plan) return sum;
+        const monthlyValue = biz.billingCycle === "ANNUAL" ? plan.annualPrice / 12 : plan.monthlyPrice;
+        return sum + monthlyValue;
+      }, 0);
+
+      return periodDays.map(({ label, days }) => {
+        const multiplier = days / 30;
+        const revenue = monthlyTotal * multiplier;
+        return { label, revenue, profit: revenue };
+      });
+    }
+
     const now = Date.now();
     return periodDays.map(({ label, days }) => {
       const cutoff = now - days * 24 * 60 * 60 * 1000;
@@ -135,7 +153,7 @@ export default function AdminPage() {
       const profit = periodSales.reduce((sum, sale) => sum + sale.netProfit, 0);
       return { label, revenue, profit };
     });
-  }, [sales]);
+  }, [businesses, isSystemAdmin, plans, sales]);
 
   if (!canManage) {
     return <div className="text-sm text-zinc-500">Bu sayfa sadece admin kullanıcılar içindir.</div>;
@@ -944,12 +962,98 @@ export default function AdminPage() {
           </button>
         </div>
         <div className="grid gap-2 md:grid-cols-2">
-          {branches.map((branch) => (
-            <div key={branch.id} className="rounded-xl border px-3 py-2 text-sm">
-              <div className="font-medium">{branch.name}</div>
-              <div className="text-xs text-zinc-500">{new Date(branch.createdAt).toLocaleDateString("tr-TR")}</div>
-            </div>
-          ))}
+          {branches.map((branch) => {
+            const isEditing = editingBranchId === branch.id;
+            return (
+              <div key={branch.id} className="rounded-xl border px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    {isEditing ? (
+                      <input
+                        className="rounded-lg border px-2 py-1 text-sm"
+                        value={editingBranchName}
+                        onChange={(event) => setEditingBranchName(event.target.value)}
+                      />
+                    ) : (
+                      <div className="font-medium">{branch.name}</div>
+                    )}
+                    <div className="text-xs text-zinc-500">
+                      {new Date(branch.createdAt).toLocaleDateString("tr-TR")}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isEditing && (
+                      <button
+                        type="button"
+                        className="text-xs text-zinc-600 hover:text-zinc-900"
+                        onClick={() => {
+                          setEditingBranchId(branch.id);
+                          setEditingBranchName(branch.name);
+                        }}
+                        aria-label="Bayi adını düzenle"
+                      >
+                        ✏️
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-xs text-red-600 hover:text-red-700"
+                      onClick={async () => {
+                        if (!confirm(`${branch.name} bayisi silinsin mi?`)) return;
+                        const res = await fetch(withBusinessId(`/api/branches/${branch.id}`, businessId), {
+                          method: "DELETE",
+                        });
+                        if (!res.ok) return;
+                        setBranches((prev) => prev.filter((item) => item.id !== branch.id));
+                        if (editingBranchId === branch.id) {
+                          setEditingBranchId(null);
+                          setEditingBranchName("");
+                        }
+                      }}
+                    >
+                      Sil
+                    </button>
+                    {isEditing && (
+                      <>
+                        <button
+                          type="button"
+                          className="text-xs text-emerald-600 hover:text-emerald-700"
+                          onClick={async () => {
+                            const name = editingBranchName.trim();
+                            if (!name) return;
+                            const res = await fetch(withBusinessId(`/api/branches/${branch.id}`, businessId), {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name }),
+                            });
+                            if (!res.ok) return;
+                            const data = await res.json();
+                            setBranches((prev) =>
+                              prev.map((item) => (item.id === branch.id ? data.item : item))
+                            );
+                            setEditingBranchId(null);
+                            setEditingBranchName("");
+                          }}
+                        >
+                          Kaydet
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-zinc-500 hover:text-zinc-700"
+                          onClick={() => {
+                            setEditingBranchId(null);
+                            setEditingBranchName("");
+                          }}
+                        >
+                          Vazgeç
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
           {!branches.length && <div className="text-sm text-zinc-500">Henüz bayi yok.</div>}
         </div>
       </div>

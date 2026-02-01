@@ -69,7 +69,11 @@ function readDatabase(): DatabaseFile {
       writeDatabase(merged);
       return merged;
     }
-    return parsed;
+    const normalized = normalizeDatabase(parsed);
+    if (normalized !== parsed) {
+      writeDatabase(normalized);
+    }
+    return normalized;
   } catch {
     const seed = buildSeedDatabase();
     fs.writeFileSync(databaseFile, JSON.stringify(seed, null, 2), "utf8");
@@ -79,6 +83,148 @@ function readDatabase(): DatabaseFile {
 
 function writeDatabase(next: DatabaseFile) {
   fs.writeFileSync(databaseFile, JSON.stringify(next, null, 2), "utf8");
+}
+
+function normalizeDatabase(db: DatabaseFile): DatabaseFile {
+  const businessBakkalId = "biz-sen-bakkal";
+  const businessKasapId = "biz-sen-kasap";
+  let changed = false;
+
+  const ensureBusiness = (businessId: string, name: string, planId: string, billingCycle: Business["billingCycle"]) => {
+    const existing = db.businesses.find((b) => b.id === businessId);
+    if (!existing) {
+      db.businesses.unshift({
+        id: businessId,
+        name,
+        planId,
+        billingCycle,
+        paymentMethods: [],
+        createdAt: now(),
+      });
+      changed = true;
+      return;
+    }
+    if (existing.name !== name || existing.planId !== planId || existing.billingCycle !== billingCycle) {
+      existing.name = name;
+      existing.planId = planId;
+      existing.billingCycle = billingCycle;
+      changed = true;
+    }
+    if (!Array.isArray(existing.paymentMethods)) {
+      existing.paymentMethods = [];
+      changed = true;
+    }
+  };
+
+  ensureBusiness(businessBakkalId, "Şen Bakkal", "plan-basic", "MONTHLY");
+  ensureBusiness(businessKasapId, "Şen Kasap", "plan-free", "FREE");
+
+  const userMap: Array<{
+    username: string;
+    password: string;
+    name: string;
+    role: DemoUser["role"];
+    businessId: string | null;
+    businessName: string | null;
+    landingPath: string;
+  }> = [
+    {
+      username: "fatih",
+      password: "fatih",
+      name: "Fatih",
+      role: "ADMİN",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
+      landingPath: "/dashboard",
+    },
+    {
+      username: "mehmet",
+      password: "mehmet",
+      name: "Mehmet",
+      role: "MÜDÜR",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
+      landingPath: "/dashboard",
+    },
+    {
+      username: "cenk",
+      password: "cenk",
+      name: "Cenk",
+      role: "PERSONEL",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
+      landingPath: "/sales/quick",
+    },
+    {
+      username: "ahmet",
+      password: "ahmet",
+      name: "Ahmet",
+      role: "PERSONEL",
+      businessId: businessBakkalId,
+      businessName: "Şen Bakkal",
+      landingPath: "/sales/quick",
+    },
+    {
+      username: "veli",
+      password: "veli",
+      name: "Veli",
+      role: "ADMİN",
+      businessId: businessKasapId,
+      businessName: "Şen Kasap",
+      landingPath: "/dashboard",
+    },
+    {
+      username: "taner",
+      password: "taner",
+      name: "Taner",
+      role: "PERSONEL",
+      businessId: businessKasapId,
+      businessName: "Şen Kasap",
+      landingPath: "/sales/quick",
+    },
+    {
+      username: "yönetim",
+      password: "1234",
+      name: "Esnaf Yönetim",
+      role: "YONETIM",
+      businessId: null,
+      businessName: null,
+      landingPath: "/admin",
+    },
+  ];
+
+  userMap.forEach((entry) => {
+    const existing = db.users.find((u) => u.username.toLowerCase() === entry.username);
+    if (!existing) {
+      db.users.unshift({
+        id: `user-${entry.username}`,
+        username: entry.username,
+        password: entry.password,
+        name: entry.name,
+        role: entry.role,
+        landingPath: entry.landingPath,
+        branchId: entry.role === "PERSONEL" ? db.branches.find((b) => b.businessId === entry.businessId)?.id ?? null : null,
+        managerId: null,
+        businessId: entry.businessId,
+        businessName: entry.businessName,
+      });
+      changed = true;
+      return;
+    }
+    const updates: Partial<DemoUser> = {};
+    if (existing.password !== entry.password) updates.password = entry.password;
+    if (existing.name !== entry.name) updates.name = entry.name;
+    if (existing.role !== entry.role) updates.role = entry.role;
+    if ((existing.businessId ?? null) !== entry.businessId) updates.businessId = entry.businessId;
+    if ((existing.businessName ?? null) !== entry.businessName) updates.businessName = entry.businessName;
+    if (existing.landingPath !== entry.landingPath) updates.landingPath = entry.landingPath;
+    if (Object.keys(updates).length) {
+      Object.assign(existing, updates);
+      changed = true;
+    }
+  });
+
+  return changed ? { ...db } : db;
 }
 
 function buildSeedDatabase(): DatabaseFile {

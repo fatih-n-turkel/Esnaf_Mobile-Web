@@ -169,7 +169,7 @@ export default function LoginPage() {
             {demoList.map((demo) => (
               <li key={demo.id}>
                 <span className="font-medium">{demo.name}</span> — {demo.username} / {demo.password} •{" "}
-                {demo.businessName ?? "Yönetim"}
+                {demo.role === "YONETIM" ? "Yönetim" : demo.businessName ?? "Şen Bakkal"}
               </li>
             ))}
           </ul>

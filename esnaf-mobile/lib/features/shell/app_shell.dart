@@ -30,18 +30,25 @@ class AppShell extends ConsumerWidget {
     final role = ref.watch(authRepoProvider).getRole();
     final auth = ref.watch(authRepoProvider);
     final notifications = ref.watch(notificationsRepoProvider);
+    final businessName = auth.getBusinessName();
+    final businessId = auth.getBusinessId();
     final loc = GoRouterState.of(context).matchedLocation;
-    final tabs = role == 'staff' ? _tabs.where((t) => t.path != '/home').toList() : _tabs;
-    final current = _indexForLocation(loc, tabs);
+    final tabs = role == 'system' ? <_Tab>[] : (role == 'staff' ? _tabs.where((t) => t.path != '/home').toList() : _tabs);
+    final current = tabs.isEmpty ? 0 : _indexForLocation(loc, tabs);
     final unread = notifications.unreadCount(
       branchId: auth.getBranchId(),
       userId: auth.currentUserId,
       role: role,
+      businessId: businessId,
     );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Esnaf Fast • ${role.toUpperCase()}'),
+        title: Text(
+          role == 'system'
+              ? 'Esnaf Mobile Web - Admin'
+              : 'Esnaf Mobile Web - ${businessName.isEmpty ? 'İşletme' : businessName}',
+        ),
         actions: [
           IconButton(
             tooltip: 'Bildirimler',
@@ -89,7 +96,7 @@ class AppShell extends ConsumerWidget {
                 const PopupMenuItem(value: 'sync', child: Text('Senkron')),
               ];
 
-              if (role == 'admin') {
+              if (role == 'admin' || role == 'system') {
                 items.add(const PopupMenuItem(value: 'admin', child: Text('Admin Paneli')));
               }
               if (role == 'manager') {
@@ -103,13 +110,15 @@ class AppShell extends ConsumerWidget {
         ],
       ),
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: current,
-        destinations: tabs
-            .map((t) => NavigationDestination(icon: Icon(t.icon), label: t.label))
-            .toList(),
-        onDestinationSelected: (i) => context.go(tabs[i].path),
-      ),
+      bottomNavigationBar: tabs.isEmpty
+          ? null
+          : NavigationBar(
+              selectedIndex: current,
+              destinations: tabs
+                  .map((t) => NavigationDestination(icon: Icon(t.icon), label: t.label))
+                  .toList(),
+              onDestinationSelected: (i) => context.go(tabs[i].path),
+            ),
     );
   }
 }

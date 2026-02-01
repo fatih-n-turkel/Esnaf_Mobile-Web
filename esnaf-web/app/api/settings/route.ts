@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
-import { getSettings, updateSettings } from "@/lib/mock-db";
+import { getSettings, listBusinesses, updateSettings } from "@/lib/mock-db";
 
-export async function GET() {
-  return NextResponse.json({ item: getSettings() });
+function resolveBusinessId(req: Request) {
+  const businessId = new URL(req.url).searchParams.get("businessId");
+  if (businessId) return businessId;
+  return listBusinesses()[0]?.id ?? "";
+}
+
+export async function GET(req: Request) {
+  const businessId = resolveBusinessId(req);
+  return NextResponse.json({ item: getSettings(businessId) });
 }
 
 export async function PUT(req: Request) {
+  const businessId = resolveBusinessId(req);
   const body = await req.json();
   const defaultVatRate = body.defaultVatRate;
   const posFeeType = body.posFeeType;
@@ -21,7 +29,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Geçerli bir POS komisyon değeri girin." }, { status: 400 });
   }
 
-  const updated = updateSettings({
+  const updated = updateSettings(businessId, {
     defaultVatRate: Number(defaultVatRate),
     ...(posFeeType !== undefined ? { posFeeType } : {}),
     ...(posFeeValue !== undefined ? { posFeeValue: Number(posFeeValue) } : {}),

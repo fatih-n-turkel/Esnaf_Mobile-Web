@@ -22,6 +22,7 @@ class HomeScreen extends ConsumerWidget {
         final auth = ref.watch(authRepoProvider);
         final role = auth.getRole();
         final branchId = auth.getBranchId();
+        final businessId = auth.getBusinessId();
         final isStaff = role == 'staff';
         if (isStaff) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -31,16 +32,16 @@ class HomeScreen extends ConsumerWidget {
         }
         final salesRepo = ref.watch(salesRepoProvider);
         final sales = salesRepo
-            .listRecent(limit: 10)
+            .listRecent(limit: 10, businessId: businessId)
             .where((s) => role == 'admin' || branchId.isEmpty || s.branchId == branchId)
             .toList();
         final salesAll = salesRepo
-            .listRecent(limit: 200)
+            .listRecent(limit: 200, businessId: businessId)
             .where((s) => role == 'admin' || branchId.isEmpty || s.branchId == branchId)
             .toList();
         ref.watch(branchesSeedProvider);
-        final branches = ref.watch(branchesRepoProvider).list();
-        final products = ref.watch(productsRepoProvider).list(branchId: branchId);
+        final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
+        final products = ref.watch(productsRepoProvider).list(branchId: branchId, businessId: businessId);
         final critical = products.where((p) => p.stockQty <= p.criticalStock).toList();
         final today = DateTime.now();
         final todaySales = salesAll.where((s) {

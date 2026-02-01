@@ -7,29 +7,34 @@ import { getDemoUsers, saveDemoUsers } from "@/lib/auth";
 import { Branch, DemoUser, Sale } from "@/lib/types";
 import { branchLabel } from "@/lib/branches";
 import { fmtTRY } from "@/lib/money";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchSales() {
-  const r = await fetch("/api/sales", { cache: "no-store" });
+async function fetchSales(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/sales", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function ManagerPage() {
   const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
   const [users, setUsers] = useState<DemoUser[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [form, setForm] = useState({ name: "", username: "", branchId: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { data: salesData } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
+  const { data: salesData } = useQuery({
+    queryKey: ["sales", businessId],
+    queryFn: () => fetchSales(businessId),
+  });
 
   const branchId = user?.branchId ?? "";
   const sales: Sale[] = salesData?.items ?? [];
 
   useEffect(() => {
     let active = true;
-    getDemoUsers().then((list) => {
+    getDemoUsers(businessId).then((list) => {
       if (active) setUsers(list);
     });
-    fetch("/api/branches", { cache: "no-store" })
+    fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : { items: [] }))
       .then((data) => {
         if (active) setBranches(data.items ?? []);
@@ -84,6 +89,8 @@ export default function ManagerPage() {
     } else {
       const created: DemoUser = {
         id: `demo-${Date.now()}`,
+        businessId: user?.businessId ?? null,
+        businessName: user?.businessName ?? null,
         username: form.username.trim(),
         password: "1234",
         name: form.name.trim(),

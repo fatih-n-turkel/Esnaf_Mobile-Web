@@ -20,6 +20,7 @@ class ProductsRepo {
     final seed = [
       Product(
         id: newId(),
+        businessId: businessBakkalId,
         name: 'Su 500ml',
         category: 'İçecek',
         salePrice: 10,
@@ -37,6 +38,7 @@ class ProductsRepo {
       ),
       Product(
         id: newId(),
+        businessId: businessBakkalId,
         name: 'Çikolata',
         category: 'Atıştırmalık',
         salePrice: 15,
@@ -54,6 +56,7 @@ class ProductsRepo {
       ),
       Product(
         id: newId(),
+        businessId: businessBakkalId,
         name: 'Defter A4',
         category: 'Kırtasiye',
         salePrice: 35,
@@ -69,6 +72,23 @@ class ProductsRepo {
         qrValue: 'P:DEFTERA4',
         updatedAt: now,
       ),
+      Product(
+        id: newId(),
+        businessId: businessKasapId,
+        name: 'Dana Kuşbaşı 1KG',
+        category: 'Kasap',
+        salePrice: 420,
+        costPrice: 320,
+        vatRate: s.defaultVatRate,
+        criticalStock: 6,
+        stockQty: 24,
+        stockByBranch: const {
+          defaultBranchKasapId: 24,
+        },
+        isActive: true,
+        qrValue: 'P:KASAP001',
+        updatedAt: now,
+      ),
     ];
 
     for (final p in seed) {
@@ -76,9 +96,19 @@ class ProductsRepo {
     }
   }
 
-  List<Product> list({String? query, String? category, bool? onlyCritical, String? branchId}) {
+  List<Product> list({
+    String? query,
+    String? category,
+    bool? onlyCritical,
+    String? branchId,
+    String? businessId,
+  }) {
     final box = HiveBoxes.box(HiveBoxes.products);
-    final items = box.values.map((m) => Product.fromMap(m)).where((p) => p.isActive).toList();
+    final items = box.values
+        .map((m) => Product.fromMap(m))
+        .where((p) => p.isActive)
+        .where((p) => businessId == null || businessId.isEmpty ? true : p.businessId == businessId)
+        .toList();
 
     return items.where((p) {
       final qOk = (query == null || query.trim().isEmpty)
@@ -95,11 +125,12 @@ class ProductsRepo {
       ..sort((a, b) => a.name.compareTo(b.name));
   }
 
-  List<String> categories() {
+  List<String> categories({String? businessId}) {
     final box = HiveBoxes.box(HiveBoxes.products);
     final set = <String>{};
     for (final m in box.values) {
       final p = Product.fromMap(m);
+      if (businessId != null && businessId.isNotEmpty && p.businessId != businessId) continue;
       if (p.category.trim().isNotEmpty) set.add(p.category);
     }
     final list = set.toList()..sort();
@@ -120,12 +151,13 @@ class ProductsRepo {
     await box.put(p.id, p.toMap());
   }
 
-  Future<void> renameCategory(String fromName, String toName) async {
+  Future<void> renameCategory(String fromName, String toName, {String? businessId}) async {
     final trimmed = toName.trim();
     if (trimmed.isEmpty) return;
     final box = HiveBoxes.box(HiveBoxes.products);
     for (final entry in box.values) {
       final p = Product.fromMap(entry);
+      if (businessId != null && businessId.isNotEmpty && p.businessId != businessId) continue;
       if (p.category == fromName) {
         await box.put(
           p.id,
@@ -135,10 +167,11 @@ class ProductsRepo {
     }
   }
 
-  Future<void> setCategoryAssignments(String categoryName, Set<String> productIds) async {
+  Future<void> setCategoryAssignments(String categoryName, Set<String> productIds, {String? businessId}) async {
     final box = HiveBoxes.box(HiveBoxes.products);
     for (final entry in box.values) {
       final p = Product.fromMap(entry);
+      if (businessId != null && businessId.isNotEmpty && p.businessId != businessId) continue;
       final shouldHave = productIds.contains(p.id);
       if (shouldHave && p.category != categoryName) {
         await box.put(
@@ -177,8 +210,13 @@ class ProductsRepo {
       ),
     );
     if (current > 0 && next <= 0) {
-      final branches = ref.read(branchesRepoProvider).list();
-      final branchName = branches.firstWhere((b) => b.id == branchId, orElse: () => Branch(id: branchId, name: 'Şube', createdAt: 0)).name;
+      final branches = ref.read(branchesRepoProvider).list(businessId: p.businessId);
+      final branchName = branches
+          .firstWhere(
+            (b) => b.id == branchId,
+            orElse: () => Branch(id: branchId, name: 'Şube', createdAt: 0, businessId: p.businessId),
+          )
+          .name;
       ref.read(notificationsRepoProvider).add(
             AppNotification(
               id: newId(),
@@ -186,6 +224,7 @@ class ProductsRepo {
               message: '${p.name} ürünü $branchName için tükendi.',
               createdAt: DateTime.now().millisecondsSinceEpoch,
               scope: NotificationScope.branch,
+              businessId: p.businessId,
               branchId: branchId,
             ),
           );

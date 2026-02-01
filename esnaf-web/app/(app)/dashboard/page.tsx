@@ -8,24 +8,32 @@ import { fmtTRY } from "@/lib/money";
 import { branchLabel, filterSalesByBranch } from "@/lib/branches";
 import { Branch } from "@/lib/types";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchSales() {
-  const r = await fetch("/api/sales", { cache: "no-store" });
+async function fetchSales(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/sales", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchBranches() {
-  const r = await fetch("/api/branches", { cache: "no-store" });
+async function fetchBranches(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function DashboardPage() {
-  const { data } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
-  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
   const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({ queryKey: ["sales", businessId], queryFn: () => fetchSales(businessId) });
+  const { data: branchData } = useQuery({
+    queryKey: ["branches", businessId],
+    queryFn: () => fetchBranches(businessId),
+  });
   const router = useRouter();
 
-  const items = filterSalesByBranch((data?.items ?? []) as any[], user?.role === "ADMİN" ? null : user?.branchId ?? null);
+  const items = filterSalesByBranch(
+    (data?.items ?? []) as any[],
+    user?.role === "ADMİN" || user?.role === "YONETIM" ? null : user?.branchId ?? null
+  );
   const branches: Branch[] = branchData?.items ?? [];
   const isPersonnel = user?.role === "PERSONEL";
   const today = new Date().toDateString();

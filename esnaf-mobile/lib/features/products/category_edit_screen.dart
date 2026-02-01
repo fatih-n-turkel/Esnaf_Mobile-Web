@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/models.dart';
 import '../../data/repositories/products_repo.dart';
+import '../../data/repositories/auth_repo.dart';
 
 class CategoryEditScreen extends ConsumerStatefulWidget {
   const CategoryEditScreen({super.key});
@@ -20,8 +21,9 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
   void initState() {
     super.initState();
     final repo = ref.read(productsRepoProvider);
-    final products = repo.list();
-    final categories = repo.categories();
+    final businessId = ref.read(authRepoProvider).getBusinessId();
+    final products = repo.list(businessId: businessId);
+    final categories = repo.categories(businessId: businessId);
     for (final name in categories) {
       _edits.add(
         _CategoryEdit(
@@ -45,7 +47,8 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(productsRepoProvider);
-    final products = repo.list();
+    final businessId = ref.watch(authRepoProvider).getBusinessId();
+    final products = repo.list(businessId: businessId);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Kategorileri Düzenle')),
@@ -90,7 +93,7 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
                     onPressed: () async {
                       final name = _newCategoryController.text.trim();
                       if (name.isEmpty) return;
-                      await repo.setCategoryAssignments(name, _newCategoryProducts);
+                      await repo.setCategoryAssignments(name, _newCategoryProducts, businessId: businessId);
                       setState(() {
                         _edits.add(
                           _CategoryEdit(
@@ -132,10 +135,10 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
                               final nextName = edit.name.trim();
                               if (nextName.isEmpty) return;
                               if (nextName != edit.originalName) {
-                                await repo.renameCategory(edit.originalName, nextName);
+                                await repo.renameCategory(edit.originalName, nextName, businessId: businessId);
                                 edit.originalName = nextName;
                               }
-                              await repo.setCategoryAssignments(nextName, edit.productIds);
+                              await repo.setCategoryAssignments(nextName, edit.productIds, businessId: businessId);
                               setState(() {});
                             },
                             child: const Text('Kaydet'),

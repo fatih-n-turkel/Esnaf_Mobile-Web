@@ -31,10 +31,11 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
     final branchId = auth.getBranchId();
+    final businessId = auth.getBusinessId();
     final salesRepo = ref.watch(salesRepoProvider);
 
     ref.watch(branchesSeedProvider);
-    final branches = ref.watch(branchesRepoProvider).list();
+    final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
 
     if (role != 'manager') {
       return const Center(child: Text('Bu sayfa sadece müdür kullanıcılar içindir.'));
@@ -42,9 +43,13 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
 
     final branch = branches.where((b) => b.id == branchId).toList();
     final branchLabel = branch.isEmpty ? 'Bilinmeyen bayi' : branch.first.name;
-    final personnel = auth.listUsers().where((u) => u.role == 'staff' && u.branchId == branchId).toList();
+    final personnel = auth
+        .listUsers()
+        .where((u) => u.role == 'staff' && u.branchId == branchId && u.businessId == businessId)
+        .toList();
 
-    final sales = salesRepo.listRecent(limit: 300).where((s) => s.branchId == branchId).toList();
+    final sales =
+        salesRepo.listRecent(limit: 300, businessId: businessId).where((s) => s.branchId == branchId).toList();
     final ownSales = sales.where((s) => s.createdBy == auth.currentUserId).toList();
     final ownRevenue = ownSales.fold<double>(0, (sum, s) => sum + s.totalGross);
     final ownProfit = ownSales.fold<double>(0, (sum, s) => sum + s.totalNetProfit);
@@ -128,6 +133,8 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
                             role: 'staff',
                             branchId: _branchId,
                             managerId: auth.currentUserId,
+                            businessId: businessId,
+                            businessName: auth.getBusinessName(),
                           );
                         } else {
                           auth.upsertUser(
@@ -137,6 +144,8 @@ class _ManagerScreenState extends ConsumerState<ManagerScreen> {
                             branchId: _branchId,
                             password: '1234',
                             managerId: auth.currentUserId,
+                            businessId: businessId,
+                            businessName: auth.getBusinessName(),
                           );
                         }
                         setState(() {

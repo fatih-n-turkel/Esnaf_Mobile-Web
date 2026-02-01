@@ -12,6 +12,7 @@ import {
   Business,
   BusinessPlan,
   BusinessApplication,
+  UserActivity,
 } from "./types";
 
 type DatabaseFile = {
@@ -25,6 +26,7 @@ type DatabaseFile = {
   businesses: Business[];
   plans: BusinessPlan[];
   applications: BusinessApplication[];
+  userActivity: UserActivity[];
 };
 
 const now = () => new Date().toISOString();
@@ -54,7 +56,8 @@ function readDatabase(): DatabaseFile {
       !Array.isArray(parsed.settings) ||
       !parsed.businesses ||
       !parsed.plans ||
-      !parsed.applications
+      !parsed.applications ||
+      !parsed.userActivity
     ) {
       const seed = buildSeedDatabase();
       const merged = {
@@ -65,6 +68,7 @@ function readDatabase(): DatabaseFile {
         businesses: parsed.businesses ?? seed.businesses,
         plans: parsed.plans ?? seed.plans,
         applications: parsed.applications ?? seed.applications,
+        userActivity: parsed.userActivity ?? seed.userActivity,
       };
       writeDatabase(merged);
       return merged;
@@ -118,6 +122,11 @@ function normalizeDatabase(db: DatabaseFile): DatabaseFile {
 
   ensureBusiness(businessBakkalId, "Şen Bakkal", "plan-basic", "MONTHLY");
   ensureBusiness(businessKasapId, "Şen Kasap", "plan-free", "FREE");
+
+  if (!Array.isArray(db.userActivity)) {
+    db.userActivity = [];
+    changed = true;
+  }
 
   const userMap: Array<{
     username: string;
@@ -255,6 +264,8 @@ function buildSeedDatabase(): DatabaseFile {
         [branchCoastId]: 35,
       },
       qrCode: "QR-SU-05L-0001",
+      note: "Toptancı: Anadolu Su / Pazartesi teslimat.",
+      noteVisibleToStaff: true,
       isActive: true,
       updatedAt: now(),
     },
@@ -273,6 +284,8 @@ function buildSeedDatabase(): DatabaseFile {
         [branchCoastId]: 5,
       },
       qrCode: "QR-CIPS-0002",
+      note: "Promosyon paketi geldiğinde teşhir rafına alın.",
+      noteVisibleToStaff: false,
       isActive: true,
       updatedAt: now(),
     },
@@ -291,6 +304,8 @@ function buildSeedDatabase(): DatabaseFile {
         [branchCoastId]: 2,
       },
       qrCode: "QR-DEFTER-A4-0003",
+      note: "Sezonluk ürün: okul açılışı öncesi artır.",
+      noteVisibleToStaff: true,
       isActive: true,
       updatedAt: now(),
     },
@@ -308,6 +323,8 @@ function buildSeedDatabase(): DatabaseFile {
         [branchKasapId]: 24,
       },
       qrCode: "QR-KASAP-0001",
+      note: "Tedarikçi: Marmara Et / günlük sipariş.",
+      noteVisibleToStaff: true,
       isActive: true,
       updatedAt: now(),
     },
@@ -409,6 +426,41 @@ function buildSeedDatabase(): DatabaseFile {
       landingPath: "/sales/quick",
       branchId: branchKasapId,
       managerId: "user-kasap-admin",
+    },
+  ];
+
+  const userActivity: UserActivity[] = [
+    {
+      id: randomUUID(),
+      businessId: businessBakkalId,
+      userId: "user-admin",
+      loginAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+      logoutAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+      deviceLabel: "Web Panel",
+    },
+    {
+      id: randomUUID(),
+      businessId: businessBakkalId,
+      userId: "user-bakkal-manager",
+      loginAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+      logoutAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
+      deviceLabel: "Mobil Uygulama",
+    },
+    {
+      id: randomUUID(),
+      businessId: businessBakkalId,
+      userId: "user-bakkal-staff",
+      loginAt: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
+      logoutAt: null,
+      deviceLabel: "POS Tablet",
+    },
+    {
+      id: randomUUID(),
+      businessId: businessKasapId,
+      userId: "user-kasap-admin",
+      loginAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+      logoutAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+      deviceLabel: "Web Panel",
     },
   ];
 
@@ -528,6 +580,7 @@ function buildSeedDatabase(): DatabaseFile {
     businesses,
     plans,
     applications,
+    userActivity,
   };
 }
 
@@ -612,6 +665,8 @@ export function addProduct(input: Omit<Product, "id" | "updatedAt" | "isActive">
     isActive: true,
     updatedAt: now(),
     qrCode: input.qrCode ?? makeQrCode(input.name),
+    note: input.note?.trim() || "",
+    noteVisibleToStaff: input.noteVisibleToStaff ?? false,
     stockByBranch,
   };
   db.products.unshift(created);
@@ -657,6 +712,8 @@ export function updateProductDetails(
     criticalStockLevel?: number;
     stockOnHand?: number;
     branchId?: string | null;
+    note?: string | null;
+    noteVisibleToStaff?: boolean;
   }
 ) {
   const db = readDatabase();
@@ -713,6 +770,12 @@ export function updateProductDetails(
     } else {
       product.stockOnHand = updates.stockOnHand;
     }
+  }
+  if (updates.note !== undefined) {
+    product.note = updates.note?.trim() || "";
+  }
+  if (typeof updates.noteVisibleToStaff === "boolean") {
+    product.noteVisibleToStaff = updates.noteVisibleToStaff;
   }
   product.updatedAt = now();
   writeDatabase(db);
@@ -888,6 +951,11 @@ export function listSales(businessId?: string | null, limit = 20) {
 export function listUsers(businessId?: string | null) {
   const db = readDatabase();
   return db.users.filter((user) => !businessId || user.businessId === businessId).slice();
+}
+
+export function listUserActivity(businessId?: string | null) {
+  const db = readDatabase();
+  return db.userActivity.filter((entry) => !businessId || entry.businessId === businessId).slice();
 }
 
 export function saveUsers(users: DemoUser[]) {

@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   const stockOnHand = Number(body.stockOnHand ?? 0);
   const criticalStockLevel = Number(body.criticalStockLevel ?? 0);
   const qrCode = body.qrCode ? String(body.qrCode).trim() : undefined;
+  const note = body.note ? String(body.note) : "";
+  const noteVisibleToStaff = Boolean(body.noteVisibleToStaff);
   const vatRate =
     body.vatRate !== undefined && body.vatRate !== null
       ? Number(body.vatRate)
@@ -45,6 +47,8 @@ export async function POST(req: Request) {
     criticalStockLevel: Number.isNaN(criticalStockLevel) ? 0 : criticalStockLevel,
     stockOnHand,
     qrCode: qrCode || undefined,
+    note,
+    noteVisibleToStaff,
   });
 
   return NextResponse.json({ item: created });

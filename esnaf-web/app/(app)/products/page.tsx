@@ -44,7 +44,7 @@ export default function ProductsPage() {
   const [qrBusy, setQrBusy] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [editBusy, setEditBusy] = useState(false);
-  const [editForm, setEditForm] = useState({ qrCode: "" });
+  const [editForm, setEditForm] = useState({ qrCode: "", note: "", noteVisibleToStaff: false });
   const [selectedCategory, setSelectedCategory] = useState<string | null>("__ALL__");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryEdits, setCategoryEdits] = useState<CategoryEdit[]>([]);
@@ -57,6 +57,8 @@ export default function ProductsPage() {
     stockOnHand: "",
     criticalStockLevel: "",
     qrCode: "",
+    note: "",
+    noteVisibleToStaff: false,
   });
 
   async function addProduct() {
@@ -68,6 +70,8 @@ export default function ProductsPage() {
       stockOnHand: Number(form.stockOnHand),
       criticalStockLevel: Number(form.criticalStockLevel || 0),
       qrCode: form.qrCode || undefined,
+      note: form.note,
+      noteVisibleToStaff: form.noteVisibleToStaff,
     };
 
     const r = await fetch(withBusinessId("/api/products", businessId), {
@@ -90,6 +94,8 @@ export default function ProductsPage() {
       stockOnHand: "",
       criticalStockLevel: "",
       qrCode: "",
+      note: "",
+      noteVisibleToStaff: false,
     });
 
     setShowForm(false);
@@ -192,6 +198,8 @@ export default function ProductsPage() {
     setEditProduct(product);
     setEditForm({
       qrCode: product.qrCode ?? "",
+      note: product.note ?? "",
+      noteVisibleToStaff: product.noteVisibleToStaff ?? false,
     });
   }
 
@@ -200,6 +208,8 @@ export default function ProductsPage() {
     setEditBusy(true);
     const payload = {
       qrCode: editForm.qrCode || undefined,
+      note: editForm.note,
+      noteVisibleToStaff: editForm.noteVisibleToStaff,
     };
     const r = await fetch(`/api/products/${editProduct.id}`, {
       method: "PUT",
@@ -399,6 +409,13 @@ export default function ProductsPage() {
               <div>
                 <div className="font-medium">{p.name}</div>
                 <div className="text-xs text-zinc-500">{p.category ?? "Kategori yok"}</div>
+                {canManage || p.noteVisibleToStaff ? (
+                  <div className="text-[11px] text-zinc-400">
+                    Not: {p.note?.trim() ? p.note : "Not yok"}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-zinc-400">Not: Personel için gizli</div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span
@@ -409,6 +426,16 @@ export default function ProductsPage() {
                 >
                   {p.qrCode ? "QR var" : "QR yok"}
                 </span>
+                {canManage && (
+                  <span
+                    className={[
+                      "text-[11px] rounded-full px-2 py-1 border",
+                      p.noteVisibleToStaff ? "border-emerald-200 text-emerald-700" : "border-zinc-200 text-zinc-500",
+                    ].join(" ")}
+                  >
+                    {p.noteVisibleToStaff ? "Not personel görünür" : "Not gizli"}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => openQr(p)}
@@ -503,6 +530,25 @@ export default function ProductsPage() {
                   Otomatik QR oluşturma ile ürün etiketi hızlıca hazırlanır.
                 </div>
               </div>
+              {canManage && (
+                <div className="grid gap-2">
+                  <textarea
+                    className="rounded-lg border px-3 py-2 text-sm"
+                    placeholder="Ürün notu (toptancı bilgisi, özel talimat vb.)"
+                    rows={3}
+                    value={form.note}
+                    onChange={(event) => setForm({ ...form, note: event.target.value })}
+                  />
+                  <label className="flex items-center gap-2 text-xs text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={form.noteVisibleToStaff}
+                      onChange={(event) => setForm({ ...form, noteVisibleToStaff: event.target.checked })}
+                    />
+                    Personeller notu görebilsin
+                  </label>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={addProduct}
@@ -688,6 +734,23 @@ export default function ProductsPage() {
                 value={editForm.qrCode}
                 onChange={(event) => setEditForm({ ...editForm, qrCode: event.target.value })}
               />
+              <textarea
+                className="rounded-lg border px-3 py-2 text-sm"
+                placeholder="Ürün notu"
+                rows={3}
+                value={editForm.note}
+                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                disabled={!canManage}
+              />
+              <label className="flex items-center gap-2 text-xs text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={editForm.noteVisibleToStaff}
+                  onChange={(event) => setEditForm({ ...editForm, noteVisibleToStaff: event.target.checked })}
+                  disabled={!canManage}
+                />
+                Personeller notu görebilsin
+              </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"

@@ -1023,6 +1023,37 @@ export function addBranch(name: string, businessId: string) {
   return created;
 }
 
+export function updateBranchName(branchId: string, name: string) {
+  const db = readDatabase();
+  const branch = db.branches.find((entry) => entry.id === branchId);
+  if (!branch) return null;
+  branch.name = name.trim();
+  writeDatabase(db);
+  return branch;
+}
+
+export function deleteBranch(branchId: string) {
+  const db = readDatabase();
+  const index = db.branches.findIndex((entry) => entry.id === branchId);
+  if (index === -1) return null;
+  const [removed] = db.branches.splice(index, 1);
+  db.users = db.users.map((user) => (user.branchId === branchId ? { ...user, branchId: null } : user));
+  db.products = db.products.map((product) => {
+    if (!product.stockByBranch || !(branchId in product.stockByBranch)) return product;
+    const nextStockByBranch = { ...product.stockByBranch };
+    delete nextStockByBranch[branchId];
+    const nextStockOnHand = Object.values(nextStockByBranch).reduce((sum, value) => sum + value, 0);
+    return {
+      ...product,
+      stockByBranch: Object.keys(nextStockByBranch).length ? nextStockByBranch : undefined,
+      stockOnHand: nextStockOnHand,
+      updatedAt: now(),
+    };
+  });
+  writeDatabase(db);
+  return removed;
+}
+
 export function listNotifications(businessId?: string | null) {
   const db = readDatabase();
   return db.notifications.filter((note) => !businessId || note.businessId === businessId).slice();

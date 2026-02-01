@@ -11,7 +11,7 @@ export default function LoginPage() {
   const login = useAuth((state) => state.login);
   const user = useAuth((state) => state.user);
 
-  const [businessName, setBusinessName] = useState("Şen Bakkal");
+  const [businessName, setBusinessName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

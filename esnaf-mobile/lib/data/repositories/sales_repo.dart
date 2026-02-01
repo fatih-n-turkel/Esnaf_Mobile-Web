@@ -16,6 +16,7 @@ class SalesRepo {
     required double posFeeValue,
     required String createdBy,
     required String branchId,
+    required String businessId,
   }) async {
     if (items.isEmpty) throw Exception('Sepet boş');
 
@@ -49,6 +50,7 @@ class SalesRepo {
 
     final sale = Sale(
       id: saleId,
+      businessId: businessId,
       receiptNo: receiptNo,
       paymentType: paymentType,
       posFeeType: posFeeType,
@@ -84,6 +86,7 @@ class SalesRepo {
         createdAt: now,
         createdBy: createdBy,
         branchId: branchId,
+        businessId: businessId,
       );
       await movBox.put(mov.id, mov.toMap());
     }
@@ -102,15 +105,19 @@ class SalesRepo {
       message: '$createdBy yeni bir satış yaptı.',
       createdAt: now,
       scope: NotificationScope.branch,
+      businessId: businessId,
       branchId: branchId,
     ));
 
     return saleId;
   }
 
-  List<Sale> listRecent({int limit = 20}) {
+  List<Sale> listRecent({int limit = 20, String? businessId}) {
     final box = HiveBoxes.box(HiveBoxes.sales);
-    final sales = box.values.map((m) => Sale.fromMap(m)).toList();
+    final sales = box.values
+        .map((m) => Sale.fromMap(m))
+        .where((sale) => businessId == null || businessId.isEmpty ? true : sale.businessId == businessId)
+        .toList();
     sales.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return sales.take(limit).toList();
   }

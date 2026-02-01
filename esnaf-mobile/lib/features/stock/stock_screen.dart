@@ -38,10 +38,11 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
     final userBranchId = auth.getBranchId();
-    final branches = ref.watch(branchesRepoProvider).list();
+    final businessId = auth.getBusinessId();
+    final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
     final activeBranchId = role == 'admin' ? _selectedBranchId : userBranchId;
-    final products = repo.list(branchId: activeBranchId);
-    final allProducts = repo.list();
+    final products = repo.list(branchId: activeBranchId, businessId: businessId);
+    final allProducts = repo.list(businessId: businessId);
     final visibleBranches = role == 'admin'
         ? (_selectedBranchId.isEmpty ? branches : branches.where((b) => b.id == _selectedBranchId).toList())
         : branches.where((b) => b.id == userBranchId).toList();
@@ -49,7 +50,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     final movBox = HiveBoxes.box(HiveBoxes.stockMovements);
     final moves = movBox.values
         .map((m) => StockMovement.fromMap(m))
-        .where((m) => activeBranchId.isEmpty || m.branchId == activeBranchId)
+        .where((m) => (businessId.isEmpty || m.businessId == businessId) && (activeBranchId.isEmpty || m.branchId == activeBranchId))
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -122,6 +123,7 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                               createdAt: DateTime.now().millisecondsSinceEpoch,
                               createdBy: createdBy,
                               branchId: activeBranchId,
+                              businessId: businessId,
                             );
                             await movBox.put(mov.id, mov.toMap());
                             setState(() {});

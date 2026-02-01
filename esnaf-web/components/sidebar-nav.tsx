@@ -16,11 +16,14 @@ const baseItems = [
 export default function SidebarNav() {
   const path = usePathname();
   const user = useAuth((state) => state.user);
-  const items = baseItems.filter((item) => !(user?.role === "PERSONEL" && item.href === "/dashboard"));
+  const items =
+    user?.role === "YONETIM"
+      ? []
+      : baseItems.filter((item) => !(user?.role === "PERSONEL" && item.href === "/dashboard"));
   if (user?.role === "ADMİN" || user?.role === "MÜDÜR") {
     items.push({ href: "/analysis", label: "Analiz" });
   }
-  if (user?.role === "ADMİN") {
+  if (user?.role === "ADMİN" || user?.role === "YONETIM") {
     items.push({ href: "/admin", label: "Admin" });
   }
   if (user?.role === "MÜDÜR") {
@@ -29,7 +32,11 @@ export default function SidebarNav() {
   return (
     <aside className="w-72 hidden md:flex min-h-screen flex-col border-r border-slate-200/70 bg-white/80 backdrop-blur-xl">
       <div className="px-5 py-5 border-b border-slate-200/70">
-        <div className="text-lg font-semibold tracking-tight text-slate-900">Esnaf Web</div>
+        <div className="text-lg font-semibold tracking-tight text-slate-900">
+          {user?.role === "YONETIM"
+            ? "Esnaf Mobile Web - Admin"
+            : `Esnaf Mobile Web - ${user?.businessName ?? "İşletme"}`}
+        </div>
         <div className="text-xs text-slate-500">Hızlı Satış + Stok</div>
       </div>
 

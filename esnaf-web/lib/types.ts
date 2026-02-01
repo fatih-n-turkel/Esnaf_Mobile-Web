@@ -1,13 +1,52 @@
-export type Role = "ADMİN" | "MÜDÜR" | "PERSONEL";
+export type Role = "ADMİN" | "MÜDÜR" | "PERSONEL" | "YONETIM";
+
+export type BillingCycle = "FREE" | "MONTHLY" | "ANNUAL";
+
+export type PlanFeature = {
+  label: string;
+};
+
+export type BusinessPlan = {
+  id: string;
+  name: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  maxEmployees: number;
+  maxBranches: number;
+  features: PlanFeature[];
+};
+
+export type Business = {
+  id: string;
+  name: string;
+  planId: string;
+  billingCycle: BillingCycle;
+  paymentMethod?: string | null;
+  createdAt: string;
+};
+
+export type BusinessApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type BusinessApplication = {
+  id: string;
+  businessName: string;
+  username: string;
+  password: string;
+  createdAt: string;
+  status: BusinessApplicationStatus;
+};
 
 export type Branch = {
   id: string;
   name: string;
   createdAt: string;
+  businessId: string;
 };
 
 export type DemoUser = {
   id: string;
+  businessId?: string | null;
+  businessName?: string | null;
   username: string;
   password: string;
   name: string;
@@ -22,6 +61,7 @@ export type PosFeeType = "RATE" | "FIXED";
 
 export type Product = {
   id: string;
+  businessId: string;
   name: string;
   category?: string;
   salePrice: number;   // satış fiyatı
@@ -47,6 +87,7 @@ export type SaleItem = {
 
 export type Sale = {
   id: string;
+  businessId: string;
   clientRequestId: string; // idempotency
   createdAt: string;
   createdBy: { id: string; name: string; role: Role };
@@ -67,6 +108,7 @@ export type Sale = {
 
 export type Notification = {
   id: string;
+  businessId: string;
   title: string;
   message: string;
   createdAt: string;
@@ -78,11 +120,13 @@ export type Notification = {
 
 export type Category = {
   id: string;
+  businessId: string;
   name: string;
   createdAt: string;
 };
 
 export type Settings = {
+  businessId: string;
   defaultVatRate: number;
   posFeeType: PosFeeType;
   posFeeValue: number;

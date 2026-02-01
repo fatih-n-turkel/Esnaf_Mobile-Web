@@ -9,32 +9,43 @@ import { Branch, Product, Settings } from "@/lib/types";
 import { getBranchStock } from "@/lib/branches";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/store/auth";
+import { withBusinessId } from "@/lib/tenant";
 
-async function fetchProducts() {
-  const r = await fetch("/api/products", { cache: "no-store" });
+async function fetchProducts(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/products", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchBranches() {
-  const r = await fetch("/api/branches", { cache: "no-store" });
+async function fetchBranches(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/branches", businessId), { cache: "no-store" });
   return r.json();
 }
 
-async function fetchSettings() {
-  const r = await fetch("/api/settings", { cache: "no-store" });
+async function fetchSettings(businessId?: string | null) {
+  const r = await fetch(withBusinessId("/api/settings", businessId), { cache: "no-store" });
   return r.json();
 }
 
 export default function QuickSalesPage() {
   const qc = useQueryClient();
   const cart = useCart();
-  const { data } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
-  const { data: branchData } = useQuery({ queryKey: ["branches"], queryFn: fetchBranches });
-  const { data: settingsData } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const user = useAuth((state) => state.user);
+  const businessId = user?.role === "YONETIM" ? null : user?.businessId ?? null;
+  const { data } = useQuery({
+    queryKey: ["products", businessId],
+    queryFn: () => fetchProducts(businessId),
+  });
+  const { data: branchData } = useQuery({
+    queryKey: ["branches", businessId],
+    queryFn: () => fetchBranches(businessId),
+  });
+  const { data: settingsData } = useQuery({
+    queryKey: ["settings", businessId],
+    queryFn: () => fetchSettings(businessId),
+  });
   const products: Product[] = data?.items ?? [];
   const branches: Branch[] = branchData?.items ?? [];
   const settings: Settings | undefined = settingsData?.item;
-  const user = useAuth((state) => state.user);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const branchId = user?.role === "ADMİN" ? selectedBranchId : user?.branchId ?? null;
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
@@ -91,6 +102,7 @@ export default function QuickSalesPage() {
 
     const payload = {
       clientRequestId,
+      businessId,
       createdBy: {
         id: user?.id ?? "demo-user",
         name: user?.name ?? "Demo",
@@ -103,7 +115,7 @@ export default function QuickSalesPage() {
       items: cart.items,
     };
 
-    const r = await fetch("/api/sales", {
+    const r = await fetch(withBusinessId("/api/sales", businessId), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -117,8 +129,8 @@ export default function QuickSalesPage() {
 
     cart.clear();
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ["sales"] }),
-      qc.invalidateQueries({ queryKey: ["products"] }),
+      qc.invalidateQueries({ queryKey: ["sales", businessId] }),
+      qc.invalidateQueries({ queryKey: ["products", businessId] }),
     ]);
 
     alert("Satış tamamlandı ✅");

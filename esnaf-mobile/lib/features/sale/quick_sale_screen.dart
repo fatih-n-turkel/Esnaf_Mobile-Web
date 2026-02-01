@@ -35,11 +35,12 @@ class QuickSaleScreen extends ConsumerWidget {
     final prodRepo = ref.watch(productsRepoProvider);
     final auth = ref.watch(authRepoProvider);
     final role = auth.getRole();
+    final businessId = auth.getBusinessId();
     final branchId = role == 'admin' ? selectedBranchId : auth.getBranchId();
     ref.watch(branchesSeedProvider);
-    final branches = ref.watch(branchesRepoProvider).list();
-    final products = prodRepo.list(query: query, category: cat, branchId: branchId);
-    final categories = prodRepo.categories();
+    final branches = ref.watch(branchesRepoProvider).list(businessId: businessId);
+    final products = prodRepo.list(query: query, category: cat, branchId: branchId, businessId: businessId);
+    final categories = prodRepo.categories(businessId: businessId);
 
     if (role == 'admin' && selectedBranchId.isEmpty && branches.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -180,6 +181,7 @@ class QuickSaleScreen extends ConsumerWidget {
     final createdBy = auth.currentUserId ?? 'admin';
     final role = auth.getRole();
     final branchId = role == 'admin' ? ref.read(_branchProvider) : auth.getBranchId();
+    final businessId = auth.getBusinessId();
 
     final items = cart.lines.map((l) {
       return SaleItem(
@@ -203,6 +205,7 @@ class QuickSaleScreen extends ConsumerWidget {
         posFeeValue: cart.posFeeValue,
         createdBy: createdBy,
         branchId: branchId,
+        businessId: businessId,
       );
 
       ref.read(cartProvider2.notifier).clear();
